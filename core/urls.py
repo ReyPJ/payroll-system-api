@@ -14,4 +14,6 @@ urlpatterns = [
         name="swagger-docs",
     ),
     path("v1/attendance/", include("attendance.urls")),
+    path("v1/auth/", include("authentication.urls")),
+    path("v1/salary/", include("payrolls.urls")),
 ]

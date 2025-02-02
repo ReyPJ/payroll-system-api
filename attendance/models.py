@@ -10,5 +10,7 @@ class AttendanceRegister(models.Model):
         choices=[("fingerprint", "Huella"), ("faceId", "Reconocimiento Facial")],
         max_length=80,
     )
+    paid = models.BooleanField(default=False)
+    pay_period = models.DateField(null=True)
     hash = models.TextField()
     sync = models.BooleanField(default=False)
