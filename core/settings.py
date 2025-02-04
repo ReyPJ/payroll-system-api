@@ -13,6 +13,7 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
+from celery.schedules import crontab
 import os
 
 load_dotenv
@@ -50,6 +51,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "corsheaders",
     "drf_spectacular",
+    "phonenumber_field",
 ]
 
 MIDDLEWARE = [
@@ -161,3 +163,21 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(hours=24)}
+
+
+TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+TWILIO_MESSAGE_TEMPLATE_ID = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID")
+
+CELERY_BROKER_URL = "redis://localhost:6379/0"
+CELERY_BEAT_SCHEDULE = {
+    "create_pay_periods": {
+        "task": "payrolls.tasks.create_pay_periods",
+        "schedule": crontab(day_of_month="1,16"),  # Ejecutar el 1ro y 16 de cada mes
+    },
+    "check_attendance": {
+        "task": "payrolls.tasks.check_attendance",
+        "schedule": crontab(minute="*/15"),  # Cada 15 minutos
+    },
+}
