@@ -2,6 +2,7 @@ from django.urls import path, include
 from drf_spectacular.views import (
     SpectacularAPIView,
     SpectacularSwaggerView,
+    SpectacularRedocView
 )
 
 urlpatterns = [
@@ -12,6 +13,11 @@ urlpatterns = [
         "v1/docs/swagger/",
         SpectacularSwaggerView.as_view(url_name="docs"),
         name="swagger-docs",
+    ),
+    path(
+        "v1/docs/redoc/",
+        SpectacularRedocView.as_view(url_name="docs"),
+        name="redoc-docs",
     ),
     path("v1/attendance/", include("attendance.urls")),
     path("v1/auth/", include("authentication.urls")),

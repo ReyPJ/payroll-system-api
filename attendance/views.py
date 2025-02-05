@@ -13,9 +13,9 @@ class AttendanceMarkView(generics.CreateAPIView):
     def post(self, request, *args, **kwargs):
         data = request.data
         method = data.get("method")
-        hash = data.get("hash")
+        hash_value = data.get("hash")
 
-        if not method or not hash:
+        if not method or not hash_value:
             return Response(
                 {"error": "Método e identificador son requeridos"},
                 status=status.HTTP_400_BAD_REQUEST,

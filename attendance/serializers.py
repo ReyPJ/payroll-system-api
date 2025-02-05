@@ -18,6 +18,7 @@ class AttendanceRegisterSerializer(serializers.ModelSerializer):
             "hash",
         ]
         read_only_fields = ["sync", "timestamp_in", "timestamp_out"]
+        extra_kwargs = {"employee": {"read_only": True}}  # Si aún lo incluyes
 
     def get_employee_name(self, obj) -> str:
         return obj.employee.get_full_name()

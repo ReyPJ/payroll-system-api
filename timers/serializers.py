@@ -4,10 +4,21 @@ from timers.models import Timer
 
 class TimerSeriealizer(serializers.ModelSerializer):
     day_display = serializers.SerializerMethodField()
+    employee_username = serializers.CharField(
+        source="employee.username", read_only=True
+    )
 
     class Meta:
         model = Timer
-        fields = ["id", "employee", "day", "timeIn", "timeOut", "day_display"]
+        fields = [
+            "id",
+            "employee",
+            "employee_username",
+            "day",
+            "timeIn",
+            "timeOut",
+            "day_display",
+        ]
 
     def get_day_display(self, obj) -> str:
         days = [
