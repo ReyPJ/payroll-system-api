@@ -109,12 +109,8 @@ SPECTACULAR_SETTINGS = {
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "payroll",
-        "USER": "reypj",
-        "PASSWORD": os.getenv("DB_PASSWORD"),
-        "HOST": os.getenv("DB_HOST"),
-        "PORT": os.getenv("DB_PORT", "5432"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": "payroll-database",
     }
 }
 
@@ -172,10 +168,6 @@ TWILIO_MESSAGE_TEMPLATE_ID = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID")
 
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_BEAT_SCHEDULE = {
-    "create_pay_periods": {
-        "task": "payrolls.tasks.create_pay_periods",
-        "schedule": crontab(day_of_month="1,16"),  # Ejecutar el 1ro y 16 de cada mes
-    },
     "check_attendance": {
         "task": "payrolls.tasks.check_attendance",
         "schedule": crontab(minute="*/15"),  # Cada 15 minutos

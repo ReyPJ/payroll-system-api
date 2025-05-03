@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from payrolls.models import SalaryRecord
+from payrolls.models import SalaryRecord, PayPeriod
 
 
 class SalaryRecordSerializer(serializers.ModelSerializer):
@@ -13,4 +13,16 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
             "paid_at",
             "sync",
             "pay_period",
+        ]
+
+
+class PayPeriodSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PayPeriod
+        fields = [
+            "id",
+            "start_date",
+            "end_date",
+            "is_closed",
+            "description",
         ]

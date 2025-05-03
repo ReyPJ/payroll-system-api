@@ -27,7 +27,10 @@ def calculate_pay_to_go(employee, test_timestamp_in=None, test_timestamp_out=Non
     total_hours = timedelta()
     extra_hours = timedelta()
 
-    timers = {timer.day: timer for timer in Timer.objects.filter(employee=employee)}
+    timers = {
+        timer.day: timer
+        for timer in Timer.objects.filter(employee=employee, is_active=True)
+    }
 
     for record in records:
         timestamp_in = test_timestamp_in or record.timestamp_in
@@ -46,23 +49,19 @@ def calculate_pay_to_go(employee, test_timestamp_in=None, test_timestamp_out=Non
             timer = timers.get(day_of_week)
 
             if timer:
-                # Crear datetime completo para el timer
+                # Calcular horas según el timer y las horas esperadas
+
+                # Crear datetime completo para el timer de entrada
                 timer_start = timestamp_in_local.replace(
                     hour=timer.timeIn.hour,
                     minute=timer.timeIn.minute,
                     second=0,
                     microsecond=0,
                 )
-                timer_end = timestamp_in_local.replace(
-                    hour=timer.timeOut.hour,
-                    minute=timer.timeOut.minute,
-                    second=0,
-                    microsecond=0,
-                )
 
-                # Ajustar para horarios que pasan la medianoche
-                if timer_end < timer_start:
-                    timer_end += timedelta(days=1)
+                # Calcular la hora de salida esperada basada en horas_esperadas
+                expected_duration = timedelta(hours=float(timer.expected_hours))
+                timer_end = timer_start + expected_duration
 
                 # Calcular horas extras antes del horario normal
                 if timestamp_in_local < timer_start:

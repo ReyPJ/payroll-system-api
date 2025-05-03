@@ -44,6 +44,7 @@ def check_attendance():
     for employee in employees:
         logger.info(f"Revisando empleado: {employee.username} - {employee.phone}")
 
+        # Verificar si hay asistencia sin cierre (marca de entrada sin salida)
         last_attendance = (
             AttendanceRegister.objects.filter(
                 employee=employee, timestamp_out__isnull=True
@@ -55,23 +56,32 @@ def check_attendance():
         if last_attendance:
             logger.info(f"Última asistencia: {last_attendance.timestamp_in}")
 
+            # Buscar horario del día
             timer = Timer.objects.filter(
-                employee=employee, day=last_attendance.timestamp_in.weekday()
+                employee=employee,
+                day=last_attendance.timestamp_in.weekday(),
+                is_active=True,
             ).first()
 
             if timer:
-                scheduled_end = last_attendance.timestamp_in.replace(
-                    hour=timer.timeOut.hour, minute=timer.timeOut.minute, second=0
+                # Calcular la hora esperada de salida basada en las horas por día
+                expected_duration = timedelta(hours=float(timer.expected_hours))
+                scheduled_in = last_attendance.timestamp_in.replace(
+                    hour=timer.timeIn.hour, minute=timer.timeIn.minute, second=0
                 )
 
-                logger.info(f"Hora programada de salida: {scheduled_end}")
+                # Usamos la hora real de entrada o la hora programada (la que sea posterior)
+                effective_start = max(last_attendance.timestamp_in, scheduled_in)
+                expected_end = effective_start + expected_duration
 
-                if now > (scheduled_end + timedelta(minutes=15)):
+                logger.info(f"Hora esperada de salida: {expected_end}")
+
+                if now > (expected_end + timedelta(minutes=10)):
                     logger.info("El empleado está tarde, enviando recordatorio...")
 
                     variables = {
                         "1": employee.username,
-                        "2": scheduled_end.strftime("%H:%M"),
+                        "2": expected_end.strftime("%H:%M"),
                     }
                     recipient = f"whatsapp:{employee.phone}"
 
@@ -92,4 +102,45 @@ def check_attendance():
             else:
                 logger.info("No se encontró horario registrado para este día.")
         else:
+            # Verificar si el empleado debería haber marcado entrada (según horario)
+            today_weekday = now.weekday()
+            timer = Timer.objects.filter(
+                employee=employee, day=today_weekday, is_active=True
+            ).first()
+
+            if timer:
+                # Verificar si ya pasó la hora de entrada + 10 minutos de tolerancia
+                scheduled_start = now.replace(
+                    hour=timer.timeIn.hour, minute=timer.timeIn.minute, second=0
+                )
+
+                if now > (
+                    scheduled_start + timedelta(minutes=10)
+                ) and now < scheduled_start.replace(hour=23, minute=59):
+                    # Verificar si ya se envió un recordatorio en la última hora
+                    # Para evitar spam de mensajes
+
+                    logger.info(
+                        f"El empleado {employee.username} no ha marcado entrada y debería haberlo hecho"
+                    )
+
+                    variables = {
+                        "1": employee.username,
+                        "2": scheduled_start.strftime("%H:%M"),
+                    }
+                    recipient = f"whatsapp:{employee.phone}"
+
+                    try:
+                        response = client.messages.create(
+                            from_=f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
+                            to=recipient,
+                            content_sid=settings.TWILIO_MESSAGE_TEMPLATE_ID,
+                            content_variables=json.dumps(variables),
+                        )
+                        logger.info(
+                            f"Mensaje recordatorio de entrada enviado exitosamente con SID: {response.sid}"
+                        )
+                    except Exception as e:
+                        logger.error(f"Error enviando mensaje a {recipient}: {e}")
+
             logger.info("No se encontró asistencia activa para este empleado.")
