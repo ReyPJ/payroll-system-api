@@ -1,110 +1,58 @@
-# Sistema de Marcaje y Planillas para su Hospital Veterinario
+# Sistema de Marcaje y Planillas
 
-## ¿Qué es y qué hace?
+## Para hospitales veterinarios con turnos variados
 
-Este sistema es una solución completa para gestionar la asistencia de sus empleados y calcular los pagos de manera automática, diseñado específicamente para hospitales veterinarios con turnos variados (día y noche). Se instala en un solo dispositivo (tablet) ubicado en la entrada del hospital para que todos los empleados puedan registrar sus entradas y salidas.
+El Sistema de Marcaje y Planillas es una solución integral diseñada específicamente para hospitales veterinarios que operan con turnos variados. Consiste en una tablet instalada en la entrada de su centro que permite a los empleados registrar entradas y salidas mediante huella digital, mientras se administran planillas y cálculos salariales de manera eficiente.
 
-## Beneficios Principales
-
-### Para la Administración
-
-✅ **Automatización Total del Proceso de Planilla**
-
-- Reduce errores humanos en el cálculo de horas y salarios
-- Ahorra tiempo significativo en la preparación de pagos quincenales
-- Permite visualizar informes detallados por empleado y período
-
-✅ **Control Preciso de Horarios**
-
-- Registra exactamente las horas trabajadas por cada empleado
-- Distingue automáticamente entre turnos diurnos y nocturnos
-- Calcula horas extras según las políticas de su hospital
-
-✅ **Recordatorios Automáticos**
-
-- Recibe notificaciones por WhatsApp para cierre de quincena
-- Reduce el riesgo de olvidar fechas importantes para pagos
-
-✅ **Seguridad y Simplicidad**
-
-- Sistema centralizado en un solo dispositivo de fácil acceso
-- Autenticación biométrica para garantizar que solo el empleado pueda marcar
-- Interfaz intuitiva que no requiere capacitación extensa
-
-### Para los Empleados
-
-✅ **Marcaje Sencillo y Seguro**
-
-- Registro de entrada/salida con huella digital en un solo lugar
-- Sin posibilidad de que otros marquen por ellos
-- Interfaz intuitiva que confirma cada marcaje exitoso
-- Visualización inmediata de las horas trabajadas al marcar salida
-
-✅ **Transparencia en el Pago**
-
-- Cálculo claro de horas regulares, nocturnas y extras
-- Justificación detallada de cada pago recibido
-
-## Características del Sistema
-
-### Marcaje de Asistencia
-
-- **Biométrico**: Utiliza huella digital para máxima seguridad
-- **Instantáneo**: Confirmación inmediata de cada marcaje
-- **Flexible**: Funciona con cualquier horario, incluso turnos que cruzan la medianoche
-- **Centralizado**: Un solo dispositivo tablet en la entrada del hospital
-
-### Gestión de Horarios (Solo Administración)
-
-- Configure horarios semanales para cada empleado
-- Defina turnos diurnos y nocturnos
-- Actualice horarios fácilmente cuando sea necesario
-
-### Cálculo de Planillas (Solo Administración)
-
-- **Horas Regulares**: Hasta el límite definido por empleado (normalmente 96 horas quincenales)
-- **Horas Extras**: Calculadas automáticamente con factor 1.5x
-- **Horas Nocturnas**: Con factor adicional personalizable por empleado
-- **Períodos de Pago**: Administración sencilla de quincenas
-
-### Comunicación
-
-- Notificaciones automáticas por WhatsApp para administradores
-- Recordatorios para cierre de períodos de pago
-
-## Cómo Funciona en la Práctica
+## Funcionamiento del Sistema
 
 ### Dispositivo de Marcaje
 
-- **Tablet instalada en la entrada del hospital**
-- Interfaz simple con dos grandes botones: "Marcar Entrada" y "Marcar Salida"
-- Al marcar salida, se muestra automáticamente las horas trabajadas ese día
-- No requiere que los empleados inicien sesión, solo su huella digital
+En la entrada del hospital se instala una tablet Android con lector de huella digital. Los empleados simplemente seleccionan "Marcar Entrada" o "Marcar Salida", colocan su huella, y el sistema registra automáticamente su asistencia. Al marcar salida, el sistema muestra las horas trabajadas durante ese día.
 
-### Ciclo Quincenal
+### Interfaz Administrativa
 
-1. **Inicio del Período**
+Para los administradores, el sistema ofrece un panel de control protegido donde podrá:
 
-   - El administrador crea un nuevo período de pago (quincena)
-   - Los empleados comienzan a registrar sus entradas y salidas en la tablet
+- Gestionar empleados y configurar sus horarios
+- Administrar períodos de pago quincenales
+- Calcular automáticamente salarios según parámetros definidos
+- Controlar horas regulares, extras y nocturnas
+- Generar informes detallados
 
-2. **Durante el Período**
+## Ventajas del Sistema
 
-   - Los empleados marcan entrada/salida diariamente usando la tablet en la entrada
-   - Administradores pueden monitorear la asistencia en tiempo real desde el modo administrativo
+**Automatización del Proceso de Planilla**
 
-3. **Cierre de Período**
+- Reduce errores humanos en el cálculo de horas y salarios
+- Ahorra tiempo significativo en la preparación de pagos quincenales
+- Proporciona precisión en los registros de tiempo trabajado
 
-   - El sistema envía recordatorios a administradores los días 14 y 28
-   - El administrador cierra el período actual
-   - El sistema identifica empleados con horas nocturnas para revisión
+**Control Especializado para Turnos Hospitalarios**
 
-4. **Cálculo de Pagos**
-   - El administrador aprueba el cálculo para cada empleado
-   - El sistema genera registros detallados de pagos
-   - La información puede exportarse para su procesamiento en el sistema contable
+- Gestión diferenciada de turnos diurnos y nocturnos
+- Control de horas extras conforme a factor de (Salario/hora x 1.5)
+- Factores de pago personalizables para turnos nocturnos
+- Adaptación a los horarios variables propios de un hospital veterinario
 
-## Ejemplos de Cálculo
+**Seguridad y Centralización**
+
+- Sistema centralizado en un único dispositivo de fácil acceso
+- Autenticación biométrica que garantiza registros precisos
+- Eliminación de registros en papel o manipulables
+- Interfaz simplificada e intuitiva para todos los usuarios
+
+## Metodología de Cálculo Salarial
+
+El sistema aplica automáticamente las siguientes reglas:
+
+**Horas Regulares:** Se consideran todas las horas trabajadas hasta el límite establecido para cada empleado (típicamente 96 horas quincenales).
+
+**Horas Extras:** Cualquier hora que exceda el límite quincenal se calcula con un factor de 1.5 veces el salario base por hora.
+
+**Horas Nocturnas:** Los turnos nocturnos (entre 7:00 PM y 9:00 AM (por ejemplo)) pueden recibir un factor adicional configurable según las políticas del hospital para cada empleado.
+
+## Ejemplos de Cálculo Detallados
 
 **Escenario 1: Empleado con Horario Regular**
 
@@ -124,7 +72,7 @@ Este sistema es una solución completa para gestionar la asistencia de sus emple
 
 **Escenario 3: Empleado con Horas Extras**
 
-- Pedro trabajó 110 horas en la quincena
+- Pedro trabajó 110 horas en la quincena, todas diurnas
 - Salario por hora: ₡2,800
 - Límite regular: 96 horas
 - Cálculo:
@@ -132,9 +80,32 @@ Este sistema es una solución completa para gestionar la asistencia de sus emple
   - Horas extras: 14 horas × ₡2,800 × 1.5 = ₡58,800
   - Total: ₡327,600
 
-## Requisitos para Implementación
+## El Proceso Quincenal
 
-- **Hardware**: Una tablet Android para instalación en la entrada del hospital
-- **Seguridad**: Lector de huella digital compatible con la tablet
-- **Conectividad**: Wi-Fi disponible para la tablet
-- **Capacitación**: Breve introducción al personal sobre cómo usar el sistema de marcaje
+1. Al inicio de cada quincena, el administrador crea un nuevo período de pago en el sistema.
+
+2. Durante los siguientes 15 días, los empleados marcan sus entradas y salidas en la tablet ubicada en la entrada del hospital. El sistema realiza un seguimiento automático.
+
+3. Al final del período (los días 15 y 30/31), el administrador recibe una notificación por WhatsApp recordándole cerrar la planilla.
+
+4. El administrador revisa los registros, identifica empleados con turnos nocturnos y decide a quiénes aplicar los factores adicionales.
+
+5. El sistema calcula automáticamente los salarios a pagar según las horas trabajadas y los parámetros establecidos.
+
+## Requisitos Técnicos
+
+Para implementar este sistema en el hospital se necesitará:
+
+- Una tablet Android para la instalación en la entrada
+- Un lector de huella digital compatible con la tablet
+- Conexión Wi-Fi para la sincronización de datos
+- Breve capacitación al personal sobre el uso del sistema de marcaje
+
+## Valor Agregado para su Hospital
+
+Este sistema ha sido diseñado específicamente para hospitales veterinarios, considerando las necesidades particulares de gestión de turnos y personal. Proporciona una solución precisa y eficiente que:
+
+- Elimina errores en el cálculo de pagos
+- Reduce significativamente el tiempo dedicado a tareas administrativas
+- Garantiza transparencia en el registro de horas y cálculo de salarios
+- Automatiza el seguimiento de turnos nocturnos y horas extras
