@@ -7,6 +7,8 @@ class EmployeeSerializer(ModelSerializer):
         model = Employee
         fields = [
             "salary_hour",
+            "biweekly_hours",
+            "night_shift_factor",
             "id",
             "username",
             "first_name",
@@ -16,4 +18,5 @@ class EmployeeSerializer(ModelSerializer):
             "use_face_id",
             "fingerprint_hash",
             "face_tamplate",
+            "phone",
         ]

@@ -165,11 +165,16 @@ TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
 TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
 TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
 TWILIO_MESSAGE_TEMPLATE_ID = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID")
+TWILIO_MESSAGE_TEMPLATE_ID_2 = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID_ADMIN_REMINDER")
 
 CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_BEAT_SCHEDULE = {
     "check_attendance": {
         "task": "payrolls.tasks.check_attendance",
         "schedule": crontab(minute="*/15"),  # Cada 15 minutos
+    },
+    "remind_pay_period_to_admin": {
+        "task": "payrolls.tasks.remind_pay_period_to_admin",
+        "schedule": crontab(day_of_month="14,28"),
     },
 }

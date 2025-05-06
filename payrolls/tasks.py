@@ -1,7 +1,6 @@
 from celery import shared_task
 from datetime import date, timedelta
 from django.utils import timezone
-from payrolls.models import PayPeriod
 from attendance.models import AttendanceRegister
 from timers.models import Timer
 from employee.models import Employee
@@ -15,21 +14,28 @@ logger = logging.getLogger(__name__)
 
 
 @shared_task
-def create_pay_periods():
+def remind_pay_period_to_admin():
     today = date.today()
-
-    if today.day <= 15:
-        start = today.replace(day=1)
-        end = today.replace(day=15)
-    else:
-        start = today.replace(day=16)
-        end = (today.replace(day=28) + timedelta(days=4)).replace(day=1) - timedelta(
-            days=1
-        )
-
-    PayPeriod.objects.get_or_create(
-        start_date=start, end_date=end, defaults={"is_closed": False}
-    )
+    if today.day == 28 or today.day == 14:
+        logger.info(f"Ejecutando remind_pay_period_to_admin. Fecha: {today}")
+        employees = Employee.objects.filter(is_admin=True)
+        for employee in employees:
+            logger.info(
+                f"Enviando recordatorio a {employee.username}, al numero {employee.phone}"
+            )
+            client = Client(settings.TWILIO_ACCOUNT_SID, settings.TWILIO_AUTH_TOKEN)
+            recipient = f"whatsapp:{employee.phone}"
+            variables = {"1": employee.get_full_name()}
+            try:
+                response = client.messages.create(
+                    from_=f"whatsapp:{settings.TWILIO_WHATSAPP_NUMBER}",
+                    to=recipient,
+                    content_sid=settings.TWILIO_MESSAGE_TEMPLATE_ID_2,
+                    content_variables=json.dumps(variables),
+                )
+                logger.info(f"Mensaje enviado exitosamente con SID: {response.sid}")
+            except Exception as e:
+                logger.info(f"Error enviando el mensaje a {recipient}, error: {e}")
 
 
 @shared_task
@@ -64,24 +70,23 @@ def check_attendance():
             ).first()
 
             if timer:
-                # Calcular la hora esperada de salida basada en las horas por día
-                expected_duration = timedelta(hours=float(timer.expected_hours))
-                scheduled_in = last_attendance.timestamp_in.replace(
-                    hour=timer.timeIn.hour, minute=timer.timeIn.minute, second=0
+                # Verificar si ha pasado la hora de salida
+                scheduled_out = last_attendance.timestamp_in.replace(
+                    hour=timer.timeOut.hour, minute=timer.timeOut.minute, second=0
                 )
 
-                # Usamos la hora real de entrada o la hora programada (la que sea posterior)
-                effective_start = max(last_attendance.timestamp_in, scheduled_in)
-                expected_end = effective_start + expected_duration
+                # Ajustar si el horario cruza la medianoche
+                if timer.timeOut < timer.timeIn:
+                    scheduled_out += timedelta(days=1)
 
-                logger.info(f"Hora esperada de salida: {expected_end}")
+                logger.info(f"Hora esperada de salida: {scheduled_out}")
 
-                if now > (expected_end + timedelta(minutes=10)):
+                if now > (scheduled_out + timedelta(minutes=10)):
                     logger.info("El empleado está tarde, enviando recordatorio...")
 
                     variables = {
                         "1": employee.username,
-                        "2": expected_end.strftime("%H:%M"),
+                        "2": scheduled_out.strftime("%H:%M"),
                     }
                     recipient = f"whatsapp:{employee.phone}"
 

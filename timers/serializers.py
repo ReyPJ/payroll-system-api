@@ -16,9 +16,10 @@ class TimerSeriealizer(serializers.ModelSerializer):
             "employee_username",
             "day",
             "timeIn",
+            "timeOut",
             "day_display",
-            "expected_hours",
             "is_active",
+            "is_night_shift",
         ]
 
     def get_day_display(self, obj) -> str:
@@ -34,9 +35,8 @@ class TimerSeriealizer(serializers.ModelSerializer):
         return days[obj.day]
 
     def validate(self, data):
-        # Podríamos agregar validaciones adicionales para expected_hours aquí
-        if data.get("expected_hours", 0) <= 0:
+        if data.get("timeOut") <= data.get("timeIn"):
             raise serializers.ValidationError(
-                "Las horas esperadas deben ser un valor positivo"
+                "La hora de salida debe ser después de la hora de entrada"
             )
         return data

@@ -1,7 +1,14 @@
 from django.urls import path
-from payrolls.views import CalculateSalary, ManagePayPeriodView
+from payrolls.views import (
+    CalculateSalary,
+    ManagePayPeriodView,
+    ListEmployeesWithNightHours,
+)
 
 urlpatterns = [
-    path("<int:employee_id>/", CalculateSalary.as_view(), name="calculate-salary"),
+    path("calculate/", CalculateSalary.as_view(), name="calculate-salary"),
     path("period/", ManagePayPeriodView.as_view(), name="manage-pay-period"),
+    path(
+        "night-hours/", ListEmployeesWithNightHours.as_view(), name="list-night-hours"
+    ),
 ]

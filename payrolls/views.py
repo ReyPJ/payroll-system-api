@@ -6,48 +6,86 @@ from rest_framework.views import APIView
 from employee.models import Employee
 from payrolls.services.calculate_payroll import calculate_pay_to_go
 from payrolls.models import SalaryRecord, PayPeriod
-from payrolls.serializers import SalaryRecordSerializer, PayPeriodSerializer
+from payrolls.serializers import (
+    SalaryRecordSerializer,
+    PayPeriodSerializer,
+    SalaryCalculationSerializer,
+)
 from datetime import date, timedelta
 from core.permissions import IsAdmin
+from attendance.models import AttendanceRegister
+from django.utils.timezone import localtime
+from timers.models import Timer
+from decimal import Decimal
 
 
-class CalculateSalary(generics.RetrieveAPIView):
-    serializer_class = SalaryRecordSerializer  # Aquí agregamos el serializador
+class CalculateSalary(generics.CreateAPIView):
+    serializer_class = SalaryCalculationSerializer
 
-    def get(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        employee_id = serializer.validated_data["employee_id"]
+        apply_night_factor = serializer.validated_data.get("apply_night_factor", False)
+        period_id = serializer.validated_data.get("period_id", None)
+
         try:
-            employee = Employee.objects.get(id=kwargs["employee_id"])
+            employee = Employee.objects.get(id=employee_id)
         except Employee.DoesNotExist:
             raise NotFound(detail="Empleado no encontrado")
 
-        # Llamamos a la función que calcula el salario
-        salary_data = calculate_pay_to_go(employee)
+        # Si se proporciona period_id, usar ese período específico
+        if period_id:
+            try:
+                pay_period = PayPeriod.objects.get(id=period_id)
+            except PayPeriod.DoesNotExist:
+                return Response(
+                    {"error": f"No existe un período de pago con ID {period_id}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # Verificar que haya un periodo activo
+            pay_period = PayPeriod.objects.filter(is_closed=False).first()
+            if not pay_period:
+                return Response(
+                    {"error": "No hay período de pago activo"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
-        pay_period = PayPeriod.objects.filter(is_closed=False).first()
-        if not pay_period:
-            return Response(
-                {"error": "No hay período de pago activo"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        # Verificar que no se haya calculado ya
         if SalaryRecord.objects.filter(
             employee=employee, pay_period=pay_period
         ).exists():
             return Response(
-                {"error": "Ya se realizó el pago para esta quincena"},
+                {
+                    "error": f"Ya se realizó el cálculo para {employee.username} en el período {pay_period.description}"
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Llamamos a la función que calcula el salario con el period_id si se proporcionó
+        salary_data = calculate_pay_to_go(employee, apply_night_factor, period_id)
+
+        if "error" in salary_data:
+            return Response(
+                {"error": salary_data["error"]},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Creamos el registro de pago
         salary_record = SalaryRecord.objects.create(
-            pay_period=pay_period,  # Referencia al objeto completo
+            pay_period=pay_period,
             employee=employee,
-            total_hours=salary_data["total_hours"].total_seconds() / 3600,
-            extra_hours=salary_data["extra_hours"].total_seconds() / 3600,
+            total_hours=salary_data["total_hours"],
+            regular_hours=salary_data["regular_hours"],
+            night_hours=salary_data["night_hours"],
+            extra_hours=salary_data["extra_hours"],
+            night_shift_factor_applied=salary_data["night_shift_factor_applied"],
             salary_to_pay=salary_data["salary_to_pay"],
         )
 
-        serializer = self.get_serializer(salary_record)
+        serializer = SalaryRecordSerializer(salary_record)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
@@ -59,6 +97,7 @@ class ManagePayPeriodView(APIView):
     """
 
     permission_classes = [IsAdmin]
+    serializer_class = PayPeriodSerializer
 
     def post(self, request):
         action = request.data.get("action", "")
@@ -113,3 +152,99 @@ class ManagePayPeriodView(APIView):
                 {"message": "Nuevo período creado", "period": serializer.data},
                 status=status.HTTP_201_CREATED,
             )
+
+
+class ListEmployeesWithNightHours(APIView):
+    """
+    Lista los empleados que tienen horas nocturnas en el período actual o en el especificado
+    para que el admin pueda decidir a quiénes aplicar el factor de pago nocturno
+    """
+
+    permission_classes = [IsAdmin]
+
+    def get(self, request):
+        # Obtener period_id de los parámetros de la consulta
+        period_id = request.query_params.get("period_id", None)
+
+        if period_id:
+            try:
+                pay_period = PayPeriod.objects.get(id=period_id)
+            except PayPeriod.DoesNotExist:
+                return Response(
+                    {"error": f"No existe un período de pago con ID {period_id}"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        else:
+            # Verificar que haya un periodo activo
+            pay_period = PayPeriod.objects.filter(is_closed=False).first()
+            if not pay_period:
+                return Response(
+                    {"error": "No hay período de pago activo"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        employees_with_night_hours = []
+
+        # Obtener todos los empleados que tienen registros en el período seleccionado
+        employees = Employee.objects.filter(
+            attendanceregister__timestamp_in__date__gte=pay_period.start_date,
+            attendanceregister__timestamp_in__date__lte=pay_period.end_date,
+            attendanceregister__paid=False,
+        ).distinct()
+
+        for employee in employees:
+            # Obtener todos los registros del empleado en el período seleccionado
+            registers = AttendanceRegister.objects.filter(
+                employee=employee,
+                timestamp_in__date__gte=pay_period.start_date,
+                timestamp_in__date__lte=pay_period.end_date,
+                paid=False,
+            ).order_by("timestamp_in")
+
+            has_night_hours = False
+            total_night_hours = timedelta()
+
+            for register in registers:
+                if not register.timestamp_out:
+                    continue
+
+                timestamp_in_local = localtime(register.timestamp_in)
+                timestamp_out_local = localtime(register.timestamp_out)
+
+                # Verificar si el turno es nocturno
+                day_of_week = timestamp_in_local.weekday()
+                timer = Timer.objects.filter(
+                    employee=employee, day=day_of_week, is_active=True
+                ).first()
+
+                is_night = False
+                if timer and timer.is_night_shift:
+                    is_night = True
+                elif calculate_pay_to_go.is_night_shift(
+                    timestamp_in_local, timestamp_out_local
+                ):
+                    is_night = True
+
+                if is_night:
+                    has_night_hours = True
+                    total_night_hours += timestamp_out_local - timestamp_in_local
+
+            if has_night_hours:
+                night_hours_decimal = Decimal(
+                    total_night_hours.total_seconds()
+                ) / Decimal(3600)
+                employees_with_night_hours.append(
+                    {
+                        "id": employee.id,
+                        "username": employee.username,
+                        "full_name": f"{employee.first_name} {employee.last_name}",
+                        "night_hours": night_hours_decimal.quantize(Decimal("0.01")),
+                        "night_shift_factor": employee.night_shift_factor,
+                        "period": {
+                            "id": pay_period.id,
+                            "description": pay_period.description,
+                        },
+                    }
+                )
+
+        return Response(employees_with_night_hours)
