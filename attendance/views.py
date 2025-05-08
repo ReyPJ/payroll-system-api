@@ -123,10 +123,16 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        employee_full_name = employee.get_full_name()
+
         # Registrar salida con timestamp real
         attendance.timestamp_out = localtime(employee.get_current_timestamp())
         attendance.save()
 
         return Response(
-            {"message": f"Salida registrada exitosamente para {employee.username}"}
+            [
+                {"message": f"Salida registrada exitosamente para {employee.username}"},
+                {"employee_name": {employee_full_name}},
+            ],
+            status=status.HTTP_201_CREATED,
         )
