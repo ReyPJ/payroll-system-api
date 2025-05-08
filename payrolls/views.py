@@ -62,16 +62,10 @@ class CalculateSalary(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        # Verificar que no se haya calculado ya
-        if SalaryRecord.objects.filter(
+        # Verificar si ya existe un SalaryRecord para este empleado y período
+        salary_record = SalaryRecord.objects.filter(
             employee=employee, pay_period=pay_period
-        ).exists():
-            return Response(
-                {
-                    "error": f"Ya se realizó el cálculo para {employee.username} en el período {pay_period.description}"
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
+        ).first()
 
         # Llamamos a la función que calcula el salario con el period_id si se proporcionó
         salary_data = calculate_pay_to_go(
@@ -89,21 +83,41 @@ class CalculateSalary(generics.CreateAPIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Creamos el registro de pago
-        salary_record = SalaryRecord.objects.create(
-            pay_period=pay_period,
-            employee=employee,
-            total_hours=salary_data["total_hours"],
-            regular_hours=salary_data["regular_hours"],
-            night_hours=salary_data["night_hours"],
-            extra_hours=salary_data["extra_hours"],
-            night_shift_factor_applied=salary_data["night_shift_factor_applied"],
-            gross_salary=salary_data["gross_salary"],
-            lunch_deduction_hours=salary_data["lunch_deduction_hours"],
-            other_deductions=salary_data["other_deductions"],
-            other_deductions_description=salary_data["other_deductions_description"],
-            salary_to_pay=salary_data["salary_to_pay"],
-        )
+        if salary_record:
+            # Si ya existe, actualizamos los campos
+            salary_record.total_hours = salary_data["total_hours"]
+            salary_record.regular_hours = salary_data["regular_hours"]
+            salary_record.night_hours = salary_data["night_hours"]
+            salary_record.extra_hours = salary_data["extra_hours"]
+            salary_record.night_shift_factor_applied = salary_data[
+                "night_shift_factor_applied"
+            ]
+            salary_record.gross_salary = salary_data["gross_salary"]
+            salary_record.lunch_deduction_hours = salary_data["lunch_deduction_hours"]
+            salary_record.other_deductions = salary_data["other_deductions"]
+            salary_record.other_deductions_description = salary_data[
+                "other_deductions_description"
+            ]
+            salary_record.salary_to_pay = salary_data["salary_to_pay"]
+            salary_record.save()
+        else:
+            # Si no existe, lo creamos
+            salary_record = SalaryRecord.objects.create(
+                pay_period=pay_period,
+                employee=employee,
+                total_hours=salary_data["total_hours"],
+                regular_hours=salary_data["regular_hours"],
+                night_hours=salary_data["night_hours"],
+                extra_hours=salary_data["extra_hours"],
+                night_shift_factor_applied=salary_data["night_shift_factor_applied"],
+                gross_salary=salary_data["gross_salary"],
+                lunch_deduction_hours=salary_data["lunch_deduction_hours"],
+                other_deductions=salary_data["other_deductions"],
+                other_deductions_description=salary_data[
+                    "other_deductions_description"
+                ],
+                salary_to_pay=salary_data["salary_to_pay"],
+            )
 
         serializer = SalaryRecordSerializer(salary_record)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
@@ -364,11 +378,10 @@ class CalculateAllSalaries(APIView):
         total_planilla = Decimal("0.0")
 
         for employee in employees:
-            # Verificar que no se haya calculado ya
-            if SalaryRecord.objects.filter(
+            # Buscar si ya existe un SalaryRecord para este empleado y período
+            salary_record = SalaryRecord.objects.filter(
                 employee=employee, pay_period=pay_period
-            ).exists():
-                continue
+            ).first()
 
             # Calcular salario utilizando apply_night_factor del serializer
             salary_data = calculate_pay_to_go(
@@ -383,23 +396,45 @@ class CalculateAllSalaries(APIView):
             if "error" in salary_data:
                 continue
 
-            # Crear registro de salario
-            salary_record = SalaryRecord.objects.create(
-                pay_period=pay_period,
-                employee=employee,
-                total_hours=salary_data["total_hours"],
-                regular_hours=salary_data["regular_hours"],
-                night_hours=salary_data["night_hours"],
-                extra_hours=salary_data["extra_hours"],
-                night_shift_factor_applied=salary_data["night_shift_factor_applied"],
-                gross_salary=salary_data["gross_salary"],
-                lunch_deduction_hours=salary_data["lunch_deduction_hours"],
-                other_deductions=salary_data["other_deductions"],
-                other_deductions_description=salary_data[
+            if salary_record:
+                # Si ya existe, actualizamos los campos
+                salary_record.total_hours = salary_data["total_hours"]
+                salary_record.regular_hours = salary_data["regular_hours"]
+                salary_record.night_hours = salary_data["night_hours"]
+                salary_record.extra_hours = salary_data["extra_hours"]
+                salary_record.night_shift_factor_applied = salary_data[
+                    "night_shift_factor_applied"
+                ]
+                salary_record.gross_salary = salary_data["gross_salary"]
+                salary_record.lunch_deduction_hours = salary_data[
+                    "lunch_deduction_hours"
+                ]
+                salary_record.other_deductions = salary_data["other_deductions"]
+                salary_record.other_deductions_description = salary_data[
                     "other_deductions_description"
-                ],
-                salary_to_pay=salary_data["salary_to_pay"],
-            )
+                ]
+                salary_record.salary_to_pay = salary_data["salary_to_pay"]
+                salary_record.save()
+            else:
+                # Crear registro de salario
+                salary_record = SalaryRecord.objects.create(
+                    pay_period=pay_period,
+                    employee=employee,
+                    total_hours=salary_data["total_hours"],
+                    regular_hours=salary_data["regular_hours"],
+                    night_hours=salary_data["night_hours"],
+                    extra_hours=salary_data["extra_hours"],
+                    night_shift_factor_applied=salary_data[
+                        "night_shift_factor_applied"
+                    ],
+                    gross_salary=salary_data["gross_salary"],
+                    lunch_deduction_hours=salary_data["lunch_deduction_hours"],
+                    other_deductions=salary_data["other_deductions"],
+                    other_deductions_description=salary_data[
+                        "other_deductions_description"
+                    ],
+                    salary_to_pay=salary_data["salary_to_pay"],
+                )
 
             salary_records.append(salary_record)
             total_planilla += salary_data["salary_to_pay"]
