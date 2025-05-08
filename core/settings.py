@@ -16,7 +16,7 @@ from datetime import timedelta
 from celery.schedules import crontab
 import os
 
-load_dotenv
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -31,7 +31,7 @@ SECRET_KEY = "django-insecure-h35+to+)s*mp)4+sq&(^rwxb5luk4r4tj8q5#9^s1&r#@vb@z4
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["192.168.1.78", "127.0.0.1"]
 
 
 # Application definition
@@ -171,7 +171,7 @@ CELERY_BROKER_URL = "redis://localhost:6379/0"
 CELERY_BEAT_SCHEDULE = {
     "check_attendance": {
         "task": "payrolls.tasks.check_attendance",
-        "schedule": crontab(minute="*/15"),  # Cada 15 minutos
+        "schedule": crontab(minute="*/15"),  # Cada 1 minuto
     },
     "remind_pay_period_to_admin": {
         "task": "payrolls.tasks.remind_pay_period_to_admin",

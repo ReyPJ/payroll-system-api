@@ -14,8 +14,15 @@ class AttendanceMarkView(generics.CreateAPIView):
         data = request.data
         method = data.get("method")
         hash_value = data.get("hash")
+        unique_pin = data.get("unique_pin")
+        qr_code = data.get("qr_code")
 
-        if not method or not hash_value:
+        if (
+            not method
+            or (method != "pin" and not hash_value)
+            and (method == "pin" and not unique_pin)
+            and (method == "qr_code" and not qr_code)
+        ):
             return Response(
                 {"error": "Método e identificador son requeridos"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -23,9 +30,15 @@ class AttendanceMarkView(generics.CreateAPIView):
 
         # Buscar empleado según método de autenticación
         if method == "fingerprint":
-            employee = Employee.objects.filter(fingerprint_hash=hash).first()
+            employee = Employee.objects.filter(fingerprint_hash=hash_value).first()
         elif method == "faceId":
-            employee = Employee.objects.filter(face_template=hash).first()
+            employee = Employee.objects.filter(face_tamplate=hash_value).first()
+        elif method == "pin":
+            employee = Employee.objects.filter(
+                is_admin=False, unique_pin=unique_pin
+            ).first()
+        elif method == "qr_code":
+            employee = Employee.objects.filter(qr_code=qr_code).first()
         else:
             return Response(
                 {"error": "Método no válido"}, status=status.HTTP_400_BAD_REQUEST
@@ -36,15 +49,25 @@ class AttendanceMarkView(generics.CreateAPIView):
                 {"error": "Empleado no encontrado"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        employee_full_name = employee.get_full_name()
+
         # Registrar entrada con timestamp real
         AttendanceRegister.objects.create(
             employee=employee,
             method=method,
             timestamp_in=localtime(employee.get_current_timestamp()),
+            hash=hash_value if method != "pin" else "",
+            unique_pin=unique_pin if method == "pin" else None,
+            qr_code=qr_code if method == "qr_code" else None,
         )
 
         return Response(
-            {"message": f"Entrada registrada exitosamente para {employee.username}"},
+            [
+                {
+                    "message": f"Entrada registrada exitosamente para {employee.username}"
+                },
+                {"employee_name": {employee_full_name}},
+            ],
             status=status.HTTP_201_CREATED,
         )
 
@@ -57,9 +80,14 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
     def post(self, request, *args, **kwargs):
         data = request.data
         method = data.get("method")
-        hash = data.get("hash")
+        hash_value = data.get("hash")
+        unique_pin = data.get("unique_pin")
 
-        if not method or not hash:
+        if (
+            not method
+            or (method != "pin" and not hash_value)
+            and (method == "pin" and not unique_pin)
+        ):
             return Response(
                 {"error": "Método e identificador son requeridos"},
                 status=status.HTTP_400_BAD_REQUEST,
@@ -67,9 +95,13 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
 
         # Buscar empleado
         if method == "fingerprint":
-            employee = Employee.objects.filter(fingerprint_hash=hash).first()
+            employee = Employee.objects.filter(fingerprint_hash=hash_value).first()
         elif method == "faceId":
-            employee = Employee.objects.filter(face_template=hash).first()
+            employee = Employee.objects.filter(face_tamplate=hash_value).first()
+        elif method == "pin":
+            employee = Employee.objects.filter(
+                is_admin=False, unique_pin=unique_pin
+            ).first()
         else:
             return Response(
                 {"error": "Método no válido"}, status=status.HTTP_400_BAD_REQUEST

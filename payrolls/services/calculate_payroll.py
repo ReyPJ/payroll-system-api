@@ -38,7 +38,14 @@ def is_night_shift(start_time, end_time):
     return False
 
 
-def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
+def calculate_pay_to_go(
+    employee,
+    apply_night_factor=False,
+    period_id=None,
+    lunch_deduction_hours=0,
+    other_deductions=0,
+    other_deductions_description="",
+):
     """
     Calcula el pago para un empleado basado en las marcas registradas en la quincena actual o especificada
 
@@ -46,6 +53,9 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
         employee: Objeto Employee
         apply_night_factor: Booleano que indica si se debe aplicar el factor de pago nocturno
         period_id: ID opcional del período de pago a calcular (si es None, usa el período activo)
+        lunch_deduction_hours: Horas a deducir por almuerzo
+        other_deductions: Otras deducciones monetarias
+        other_deductions_description: Descripción de las otras deducciones
 
     Returns:
         Diccionario con las horas calculadas y salario a pagar
@@ -80,6 +90,9 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
     total_worked_hours = timedelta()
     total_night_hours = timedelta()
 
+    # Diccionario para almacenar detalles diarios de asistencia
+    attendance_details = {}
+
     # Procesar cada registro de asistencia
     for record in records:
         # Omitir registros sin marca de salida
@@ -94,6 +107,7 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
             continue
 
         worked_hours = timestamp_out_local - timestamp_in_local
+        work_date = timestamp_in_local.date()
 
         # Verificar si el turno es nocturno según Timer
         day_of_week = timestamp_in_local.weekday()
@@ -105,13 +119,39 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
         is_night = False
         if timer and timer.is_night_shift:
             is_night = True
-        elif is_night_shift(timestamp_in_local, timestamp_out_local):
+        elif is_night_shift(timestamp_in_local.time(), timestamp_out_local.time()):
             is_night = True
 
         if is_night:
             total_night_hours += worked_hours
+            night_hours_for_day = worked_hours
+            regular_hours_for_day = timedelta(0)
+        else:
+            night_hours_for_day = timedelta(0)
+            regular_hours_for_day = worked_hours
 
         total_worked_hours += worked_hours
+
+        # Guardar detalles de este día
+        if work_date not in attendance_details:
+            attendance_details[work_date] = {
+                "time_in": timestamp_in_local.time(),
+                "time_out": timestamp_out_local.time(),
+                "regular_hours": regular_hours_for_day,
+                "night_hours": night_hours_for_day,
+                "extra_hours": timedelta(0),  # Se calculará después
+                "lunch_deduction": timedelta(0),  # Se aplicará proporcionalmente
+            }
+        else:
+            # Si ya hay un registro para este día, actualizar las horas
+            attendance_details[work_date]["regular_hours"] += regular_hours_for_day
+            attendance_details[work_date]["night_hours"] += night_hours_for_day
+
+            # Actualizar hora de entrada/salida si es necesario
+            if timestamp_in_local.time() < attendance_details[work_date]["time_in"]:
+                attendance_details[work_date]["time_in"] = timestamp_in_local.time()
+            if timestamp_out_local.time() > attendance_details[work_date]["time_out"]:
+                attendance_details[work_date]["time_out"] = timestamp_out_local.time()
 
     # Convertir a decimal para cálculos precisos
     total_seconds = Decimal(total_worked_hours.total_seconds())
@@ -129,6 +169,45 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
     # Limitar horas nocturnas al máximo de horas regulares
     night_hours = min(night_hours, regular_hours)
 
+    # Aplicar deducción de almuerzo
+    lunch_deduction_hours = Decimal(lunch_deduction_hours)
+
+    # Distribuir las horas extra a los detalles diarios si hay horas extra
+    if extra_hours > 0:
+        # Convertir horas extra a segundos
+        extra_seconds = extra_hours * 3600
+
+        # Calcular el total de segundos trabajados en cada día
+        daily_totals = {
+            date: (details["regular_hours"] + details["night_hours"]).total_seconds()
+            for date, details in attendance_details.items()
+        }
+
+        # Calcular el total de todos los días
+        all_days_total = sum(daily_totals.values())
+
+        # Distribuir las horas extra proporcionalmente
+        for date, total_seconds in daily_totals.items():
+            # Calcular la proporción de este día en relación al total
+            proportion = Decimal(total_seconds) / Decimal(all_days_total)
+            # Asignar horas extra proporcionalmente
+            extra_seconds_for_day = proportion * extra_seconds
+            attendance_details[date]["extra_hours"] = timedelta(
+                seconds=int(extra_seconds_for_day)
+            )
+
+    # Distribuir la deducción de almuerzo proporcionalmente a los días trabajados si hay deducción
+    if lunch_deduction_hours > 0:
+        lunch_seconds = lunch_deduction_hours * 3600
+        days_count = len(attendance_details)
+
+        if days_count > 0:
+            lunch_seconds_per_day = lunch_seconds / days_count
+            for date in attendance_details:
+                attendance_details[date]["lunch_deduction"] = timedelta(
+                    seconds=int(lunch_seconds_per_day)
+                )
+
     # Calcular salario
     regular_pay = regular_hours * employee.salary_hour
 
@@ -139,11 +218,51 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
     # Calcular pago por horas extra (siempre 1.5x)
     extra_pay = extra_hours * employee.salary_hour * Decimal("1.5")
 
-    # Total a pagar
-    total_pay = regular_pay + night_premium + extra_pay
+    # Calcular deducciones
+    lunch_deduction = lunch_deduction_hours * employee.salary_hour
+    other_deductions = Decimal(other_deductions)
+
+    # Salario bruto antes de deducciones
+    gross_salary = regular_pay + night_premium + extra_pay
+
+    # Total a pagar después de deducciones
+    total_pay = gross_salary - lunch_deduction - other_deductions
 
     # Marcar los registros como pagados
     records.update(paid=True, pay_period=pay_period)
+
+    # Guardar los detalles de asistencia
+    from attendance.models import AttendanceDetail
+
+    for work_date, details in attendance_details.items():
+        # Convertir timedeltas a decimal para guardar en el modelo
+        regular_hours_decimal = Decimal(
+            details["regular_hours"].total_seconds()
+        ) / Decimal(3600)
+        night_hours_decimal = Decimal(details["night_hours"].total_seconds()) / Decimal(
+            3600
+        )
+        extra_hours_decimal = Decimal(details["extra_hours"].total_seconds()) / Decimal(
+            3600
+        )
+        lunch_deduction_decimal = Decimal(
+            details["lunch_deduction"].total_seconds()
+        ) / Decimal(3600)
+
+        # Crear o actualizar el detalle de asistencia
+        AttendanceDetail.objects.update_or_create(
+            employee=employee,
+            pay_period=pay_period,
+            work_date=work_date,
+            defaults={
+                "time_in": details["time_in"],
+                "time_out": details["time_out"],
+                "regular_hours": regular_hours_decimal,
+                "night_hours": night_hours_decimal,
+                "extra_hours": extra_hours_decimal,
+                "lunch_deduction": lunch_deduction_decimal,
+            },
+        )
 
     return {
         "total_hours": total_hours,
@@ -151,5 +270,9 @@ def calculate_pay_to_go(employee, apply_night_factor=False, period_id=None):
         "night_hours": night_hours,
         "extra_hours": extra_hours,
         "night_shift_factor_applied": night_factor,
+        "gross_salary": gross_salary,
+        "lunch_deduction_hours": lunch_deduction_hours,
+        "other_deductions": other_deductions,
+        "other_deductions_description": other_deductions_description,
         "salary_to_pay": total_pay,
     }

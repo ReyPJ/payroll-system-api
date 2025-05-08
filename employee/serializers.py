@@ -19,4 +19,9 @@ class EmployeeSerializer(ModelSerializer):
             "fingerprint_hash",
             "face_tamplate",
             "phone",
+            "unique_pin",
+            "qr_code",
         ]
+
+    def get_qr_code(self, obj):
+        return obj.qr_code
