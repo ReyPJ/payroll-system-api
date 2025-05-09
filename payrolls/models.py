@@ -10,7 +10,7 @@ class PayPeriod(models.Model):
     description = models.CharField(max_length=50, blank=True)
 
     def save(self, *args, **kwargs):
-        self.description = f"Quincena {self.start_date} - {self.end_date}"
+        self.description = f"Quincena {self.start_date.strftime('%d/%m/%Y')} - {self.end_date.strftime('%d/%m/%Y')}"
         super().save(*args, **kwargs)
 
     def __str__(self):

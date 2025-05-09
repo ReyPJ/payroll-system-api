@@ -1,4 +1,4 @@
-from rest_framework import generics
+from rest_framework import generics, permissions
 from rest_framework.response import Response
 from rest_framework.exceptions import NotFound
 from rest_framework import status
@@ -14,7 +14,6 @@ from payrolls.serializers import (
     CalculateAllSalariesSerializer,
 )
 from datetime import date, timedelta
-from core.permissions import IsAdmin
 from attendance.models import AttendanceRegister
 from django.utils.timezone import localtime
 from timers.models import Timer
@@ -131,7 +130,7 @@ class ManagePayPeriodView(APIView):
     - Crear un nuevo período
     """
 
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.AllowAny]
     serializer_class = PayPeriodSerializer
 
     def get(self, request):
@@ -233,7 +232,7 @@ class ListEmployeesWithNightHours(APIView):
     para que el admin pueda decidir a quiénes aplicar el factor de pago nocturno
     """
 
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = EmployeeNightHoursSerializer
 
     def get(self, request):
@@ -331,7 +330,7 @@ class CalculateAllSalaries(APIView):
     Calcula el salario de todos los empleados para un período específico
     """
 
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = CalculateAllSalariesSerializer
 
     def get(self, request):
@@ -458,7 +457,7 @@ class ListSalaryRecordsByPeriod(generics.ListAPIView):
     """
 
     serializer_class = SalaryRecordSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         period_id = self.request.query_params.get("period_id")
@@ -479,7 +478,7 @@ class SalaryRecordEmployeeDetail(generics.RetrieveAPIView):
     """
 
     serializer_class = SalaryRecordSerializer
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
     queryset = SalaryRecord.objects.all()
 
 
@@ -488,7 +487,7 @@ class EmployeeAttendanceDetailView(generics.ListAPIView):
     Obtiene los detalles de asistencia para un empleado en un período específico
     """
 
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_serializer_class(self):
         from attendance.serializers import AttendanceDetailSerializer

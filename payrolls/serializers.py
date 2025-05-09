@@ -43,6 +43,7 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
 
 
 class PayPeriodSerializer(serializers.ModelSerializer):
+
     class Meta:
         model = PayPeriod
         fields = [

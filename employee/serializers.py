@@ -1,4 +1,5 @@
-from rest_framework.serializers import ModelSerializer
+from rest_framework.serializers import ModelSerializer, Serializer
+from rest_framework import serializers
 from employee.models import Employee
 
 
@@ -25,3 +26,16 @@ class EmployeeSerializer(ModelSerializer):
 
     def get_qr_code(self, obj):
         return obj.qr_code
+
+
+class CurrentlyWorkingEmployeeSerializer(Serializer):
+    """
+    Serializer para los empleados que están actualmente trabajando.
+    Incluye información sobre su marca de entrada activa.
+    """
+
+    id = serializers.IntegerField()
+    full_name = serializers.CharField()
+    username = serializers.CharField()
+    timestamp_in = serializers.DateTimeField()
+    method = serializers.CharField()

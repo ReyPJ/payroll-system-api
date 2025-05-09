@@ -47,8 +47,8 @@ class AttendanceDetailSerializer(serializers.ModelSerializer):
             "lunch_deduction",
         ]
 
-    def get_employee_name(self, obj):
+    def get_employee_name(self, obj) -> str:
         return obj.employee.get_full_name()
 
-    def get_formatted_date(self, obj):
+    def get_formatted_date(self, obj) -> str:
         return obj.work_date.strftime("%d/%m/%Y")

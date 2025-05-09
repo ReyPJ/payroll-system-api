@@ -3,6 +3,7 @@ from employee.views import (
     EmployeeListCreateView,
     EmployeeDetailView,
     EmployeeQRCodeView,
+    CurrentlyWorkingEmployeesView,
 )
 
 urlpatterns = [
@@ -14,5 +15,10 @@ urlpatterns = [
         "<int:pk>/make-qr-code/",
         EmployeeQRCodeView.as_view(),
         name="Generar QR para empleado",
+    ),
+    path(
+        "active/",
+        CurrentlyWorkingEmployeesView.as_view(),
+        name="Empleados trabajando actualmente",
     ),
 ]
