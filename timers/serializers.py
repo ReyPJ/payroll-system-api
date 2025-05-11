@@ -35,7 +35,8 @@ class TimerSeriealizer(serializers.ModelSerializer):
         return days[obj.day]
 
     def validate(self, data):
-        if data.get("timeOut") <= data.get("timeIn"):
+        # Para turnos nocturnos permitimos que la hora de salida sea menor que la de entrada
+        if not data.get("is_night_shift") and data.get("timeOut") <= data.get("timeIn"):
             raise serializers.ValidationError(
                 "La hora de salida debe ser después de la hora de entrada"
             )

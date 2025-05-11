@@ -2,12 +2,11 @@ from rest_framework import generics, permissions
 from rest_framework.response import Response
 from timers.models import Timer
 from timers.serializers import TimerSeriealizer
-from core.permissions import IsAdmin
 
 
 class TimerListCreateView(generics.ListCreateAPIView):
     serializer_class = TimerSeriealizer
-    permission_classes = [IsAdmin]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         return Timer.objects.select_related("employee")
@@ -20,7 +19,7 @@ class TimerListCreateView(generics.ListCreateAPIView):
             employee_id = timer.employee.id
             if employee_id not in grouped_timers:
                 grouped_timers[employee_id] = {
-                    "employee": timer.employee.username,  # Asumimos que el campo `username` existe
+                    "employee": timer.employee.id,  # Asumimos que el campo `username` existe
                     "timers": [],
                 }
             grouped_timers[employee_id]["timers"].append(TimerSeriealizer(timer).data)
@@ -34,12 +33,12 @@ class TimerListCreateView(generics.ListCreateAPIView):
 class TimerDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = TimerSeriealizer
     queryset = Timer.objects.all()
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
 
 class TimerByEmployeeView(generics.ListAPIView):
     serializer_class = TimerSeriealizer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         employee_id = self.kwargs["employee_id"]

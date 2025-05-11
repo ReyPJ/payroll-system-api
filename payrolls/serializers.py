@@ -30,13 +30,13 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
             "has_night_hours",
         ]
 
-    def get_employee_name(self, obj):
+    def get_employee_name(self, obj) -> str:
         return f"{obj.employee.first_name} {obj.employee.last_name}"
 
-    def get_has_night_hours(self, obj):
+    def get_has_night_hours(self, obj) -> bool:
         return obj.night_hours > 0
 
-    def get_period_name(self, obj):
+    def get_period_name(self, obj) -> str:
         if obj.pay_period:
             return obj.pay_period.description
         return ""

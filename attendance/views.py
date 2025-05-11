@@ -1,6 +1,9 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
-from attendance.serializers import AttendanceRegisterSerializer
+from attendance.serializers import (
+    AttendanceRegisterSerializer,
+    AttendanceStatsResponseSerializer,
+)
 from employee.models import Employee
 from attendance.models import AttendanceRegister
 from django.utils.timezone import localtime
@@ -146,7 +149,8 @@ class AttendanceStatsView(APIView):
     para mostrar en el frontend como gráficos, rankings, etc.
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+    serializer_class = AttendanceStatsResponseSerializer
 
     def get(self, request):
         period_id = request.query_params.get("period_id")
@@ -255,15 +259,19 @@ class AttendanceStatsView(APIView):
         # Ordenar por total de horas trabajadas (descendente)
         stats = sorted(stats, key=lambda x: x["total_hours"], reverse=True)
 
-        return Response(
-            {
-                "pay_period": {
-                    "id": pay_period.id,
-                    "description": pay_period.description,
-                    "start_date": pay_period.start_date,
-                    "end_date": pay_period.end_date,
-                    "is_closed": pay_period.is_closed,
-                },
-                "stats": stats,
-            }
-        )
+        # Usar los serializers para validar y serializar los datos
+        data = {
+            "pay_period": {
+                "id": pay_period.id,
+                "description": pay_period.description,
+                "start_date": pay_period.start_date,
+                "end_date": pay_period.end_date,
+                "is_closed": pay_period.is_closed,
+            },
+            "stats": stats,
+        }
+
+        serializer = AttendanceStatsResponseSerializer(data=data)
+        serializer.is_valid(raise_exception=True)
+
+        return Response(serializer.validated_data)

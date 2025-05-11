@@ -22,6 +22,7 @@ from decimal import Decimal
 
 class CalculateSalary(generics.CreateAPIView):
     serializer_class = SalaryCalculationSerializer
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -130,7 +131,7 @@ class ManagePayPeriodView(APIView):
     - Crear un nuevo período
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = PayPeriodSerializer
 
     def get(self, request):

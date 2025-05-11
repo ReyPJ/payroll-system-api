@@ -11,6 +11,4 @@ class CustomTokenObtainPairView(APIView):
         serializer = CustomTokenObtainPairSerializer(data=request.data)
         if serializer.is_valid():
             return Response(serializer.validated_data, status=status.HTTP_200_OK)
-        data = request.data
-        print(data)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

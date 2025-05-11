@@ -52,3 +52,20 @@ class AttendanceDetailSerializer(serializers.ModelSerializer):
 
     def get_formatted_date(self, obj) -> str:
         return obj.work_date.strftime("%d/%m/%Y")
+
+
+class AttendanceStatsEmployeeSerializer(serializers.Serializer):
+    employee_id = serializers.IntegerField()
+    employee_name = serializers.CharField()
+    username = serializers.CharField()
+    days_worked = serializers.IntegerField()
+    total_hours = serializers.FloatField()
+    regular_hours = serializers.FloatField()
+    night_hours = serializers.FloatField()
+    target_biweekly_hours = serializers.FloatField()
+    hourly_rate = serializers.FloatField()
+
+
+class AttendanceStatsResponseSerializer(serializers.Serializer):
+    pay_period = serializers.DictField()
+    stats = AttendanceStatsEmployeeSerializer(many=True)

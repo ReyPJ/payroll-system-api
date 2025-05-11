@@ -13,7 +13,7 @@ from io import BytesIO
 class EmployeeListCreateView(generics.ListCreateAPIView):
     serializer_class = EmployeeSerializer
     queryset = Employee.objects.all()
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def create(self, request, *args, **kwargs):
         user = self.request.user
@@ -30,7 +30,7 @@ class EmployeeListCreateView(generics.ListCreateAPIView):
 class EmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
     serializer_class = EmployeeSerializer
     queryset = Employee.objects.all()
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -45,7 +45,7 @@ class EmployeeDetailView(generics.RetrieveUpdateDestroyAPIView):
 class EmployeeQRCodeView(generics.CreateAPIView):
     serializer_class = EmployeeSerializer
     queryset = Employee.objects.all()
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, *args, **kwargs):
         # Obtener el empleado por ID que viene en la URL
@@ -89,7 +89,7 @@ class CurrentlyWorkingEmployeesView(APIView):
     Retorna todos los empleados que tienen una marca de entrada sin marcar salida.
     """
 
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
     serializer_class = CurrentlyWorkingEmployeeSerializer
 
     def get(self, request):
