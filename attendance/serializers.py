@@ -15,12 +15,10 @@ class AttendanceRegisterSerializer(serializers.ModelSerializer):
             "timestamp_out",
             "method",
             "sync",
-            "hash",
-            "unique_pin",
-            "qr_code",
+            "nfc_token",
         ]
         read_only_fields = ["sync", "timestamp_in", "timestamp_out"]
-        extra_kwargs = {"employee": {"read_only": True}}  # Si aún lo incluyes
+        extra_kwargs = {"employee": {"read_only": True}}
 
     def get_employee_name(self, obj) -> str:
         return obj.employee.get_full_name()
@@ -68,4 +66,4 @@ class AttendanceStatsEmployeeSerializer(serializers.Serializer):
 
 class AttendanceStatsResponseSerializer(serializers.Serializer):
     pay_period = serializers.DictField()
-    stats = AttendanceStatsEmployeeSerializer(many=True)
+    stats = serializers.ListField()

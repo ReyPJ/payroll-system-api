@@ -9,10 +9,7 @@ class AttendanceRegister(models.Model):
     timestamp_out = models.DateTimeField(null=True, blank=True)
     method = models.CharField(
         choices=[
-            ("fingerprint", "Huella"),
-            ("faceId", "Reconocimiento Facial"),
-            ("pin", "PIN"),
-            ("qr_code", "QR Code"),
+            ("nfc", "NFC Token"),
         ],
         max_length=80,
     )
@@ -20,10 +17,8 @@ class AttendanceRegister(models.Model):
     pay_period = models.ForeignKey(
         PayPeriod, on_delete=models.SET_NULL, null=True, blank=True
     )
-    hash = models.TextField()
+    nfc_token = models.TextField(null=True, blank=True)
     sync = models.BooleanField(default=False)
-    unique_pin = models.CharField(max_length=10, null=True, blank=True)
-    qr_code = models.TextField(null=True, blank=True)
 
 
 class AttendanceDetail(models.Model):

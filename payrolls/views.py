@@ -4,7 +4,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework import status
 from rest_framework.views import APIView
 from employee.models import Employee
-from payrolls.services.calculate_payroll import calculate_pay_to_go
+from payrolls.services.calculate_payroll import calculate_pay_to_go, is_night_shift
 from payrolls.models import SalaryRecord, PayPeriod
 from payrolls.serializers import (
     SalaryRecordSerializer,
@@ -213,8 +213,22 @@ class ManagePayPeriodView(APIView):
 
             # Personalizar fechas si se proporcionan
             start_date = request.data.get("start_date", today)
+            if isinstance(start_date, str):
+                from datetime import datetime
+
+                try:
+                    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                except ValueError:
+                    start_date = datetime.strptime(start_date, "%d/%m/%Y").date()
             if "end_date" in request.data:
                 end_date = request.data.get("end_date")
+                if isinstance(end_date, str):
+                    from datetime import datetime
+
+                    try:
+                        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    except ValueError:
+                        end_date = datetime.strptime(end_date, "%d/%m/%Y").date()
 
             new_period = PayPeriod.objects.create(
                 start_date=start_date, end_date=end_date, is_closed=False
@@ -294,9 +308,7 @@ class ListEmployeesWithNightHours(APIView):
                 is_night = False
                 if timer and timer.is_night_shift:
                     is_night = True
-                elif calculate_pay_to_go.is_night_shift(
-                    timestamp_in_local, timestamp_out_local
-                ):
+                elif is_night_shift(timestamp_in_local, timestamp_out_local):
                     is_night = True
 
                 if is_night:

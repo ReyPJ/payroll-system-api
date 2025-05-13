@@ -17,13 +17,37 @@ from django.utils import timezone  # noqa: E402
 
 print("Creando datos de prueba para el sistema de nómina...")
 
+# Crear o verificar el admin principal
+print("Verificando admin principal...")
+admin, admin_created = Employee.objects.get_or_create(
+    username="reyner",
+    defaults={
+        "first_name": "Reyner",
+        "last_name": "Paniagua",
+        "email": "reyner@example.com",
+        "is_staff": True,
+        "is_superuser": True,
+        "unique_pin": "8888",
+        "salary_hour": Decimal("10000.00"),
+        "biweekly_hours": Decimal("96.0"),
+        "night_shift_factor": Decimal("1.00"),
+    },
+)
+
+if admin_created:
+    admin.set_password("admin123")
+    admin.save()
+    print("Admin principal creado: Reyner Paniagua")
+else:
+    print("Admin principal ya existe")
+
 # Limpiar datos existentes
 print("Limpiando datos existentes...")
 Timer.objects.all().delete()
 AttendanceRegister.objects.all().delete()
 PayPeriod.objects.filter(is_closed=False).delete()  # Solo eliminar período activo
 
-# Crear o actualizar 4 empleados
+# Crear o actualizar empleados
 print("Creando empleados...")
 employees = []
 
@@ -34,21 +58,18 @@ employee_data = [
         "first_name": "María",
         "last_name": "González",
         "email": "maria@example.com",
-        "salary_hour": Decimal("30.00"),
+        "salary_hour": Decimal("8750.00"),
         "biweekly_hours": Decimal("96.0"),
-        "use_finger_print": True,
-        "fingerprint_hash": "maria_hash_test",
-        "night_shift_factor": Decimal("1.25"),
+        "unique_pin": "1111",
     },
     {
         "username": "juan",
         "first_name": "Juan",
         "last_name": "Perez",
         "email": "juan@example.com",
-        "salary_hour": Decimal("25.00"),
+        "salary_hour": Decimal("2500.00"),
         "biweekly_hours": Decimal("80.0"),
-        "use_finger_print": False,
-        "face_tamplate": "juan_face_template",
+        "unique_pin": "2222",
         "night_shift_factor": Decimal("1.20"),
     },
     {
@@ -56,41 +77,42 @@ employee_data = [
         "first_name": "Carlos",
         "last_name": "Rodriguez",
         "email": "carlos@example.com",
-        "salary_hour": Decimal("28.00"),
+        "salary_hour": Decimal("3000.00"),
         "biweekly_hours": Decimal("96.0"),
-        "unique_pin": "123456",
+        "unique_pin": "3333",
     },
 ]
 
-# Agregar usuarios vacilones solo con PIN
+# Usuarios adicionales con PIN (antes vacilones)
 pin_users = [
     {
-        "username": "tralalero",
-        "first_name": "Tralalero",
-        "last_name": "El Vacilón",
-        "email": "tralalero@ejemplo.com",
-        "salary_hour": Decimal("20.00"),
+        "username": "roberto",
+        "first_name": "Roberto",
+        "last_name": "Fernández",
+        "email": "roberto@example.com",
+        "salary_hour": Decimal("3000.00"),
         "biweekly_hours": Decimal("96.0"),
         "night_shift_factor": Decimal("1.00"),
-        "unique_pin": "55555",
+        "unique_pin": "4444",
     },
     {
-        "username": "tralala",
-        "first_name": "Tralala",
-        "last_name": "La Vacilona",
-        "email": "tralala@ejemplo.com",
-        "salary_hour": Decimal("20.00"),
+        "username": "laura",
+        "first_name": "Laura",
+        "last_name": "Vargas",
+        "email": "laura@example.com",
+        "salary_hour": Decimal("2000.00"),
         "biweekly_hours": Decimal("96.0"),
         "night_shift_factor": Decimal("1.00"),
-        "unique_pin": "33333",
+        "unique_pin": "5555",
     },
 ]
 
 employee_data.extend(pin_users)
 
 for data in employee_data:
-    username = data.pop("username")
-    emp, created = Employee.objects.get_or_create(username=username, defaults=data)
+    data_copy = data.copy()
+    username = data_copy.pop("username")
+    emp, created = Employee.objects.get_or_create(username=username, defaults=data_copy)
     if created:
         emp.set_password("password123")
         emp.save()
@@ -166,8 +188,8 @@ for emp in employees:
             is_active=True,
             is_night_shift=True,
         )
-    # Para los vacilones: horario 24/7
-    elif emp.username in ["tralalero", "tralala"]:
+    # Para los empleados con horario flexible (antes "vacilones")
+    elif emp.username in ["roberto", "laura"]:
         for day in range(7):  # Todos los días
             Timer.objects.create(
                 employee=emp,
@@ -241,28 +263,11 @@ def generate_attendance(employee, start_date, days_count=7):
                 employee=employee,
                 timestamp_in=timestamp_in,
                 timestamp_out=timestamp_out,
-                method=(
-                    "fingerprint"
-                    if employee.use_finger_print
-                    else (
-                        "faceId"
-                        if employee.face_tamplate
-                        else ("pin" if employee.unique_pin else "qr_code")
-                    )
-                ),
-                hash=(
-                    employee.fingerprint_hash
-                    if employee.use_finger_print
-                    else (employee.face_tamplate if employee.face_tamplate else "")
-                ),
+                method="pin",
+                hash="",
                 paid=False,
                 sync=True,
-                unique_pin=employee.unique_pin if employee.unique_pin else None,
-                qr_code=(
-                    employee.qr_code
-                    if hasattr(employee, "qr_code") and employee.qr_code
-                    else None
-                ),
+                unique_pin=employee.unique_pin,
             )
             created_count += 1
 
@@ -274,9 +279,9 @@ for emp in employees:
     count = generate_attendance(emp, start_date)
     print(f"Creados {count} registros de asistencia para {emp.username}")
 
-# Crear registro de asistencia abierto para los vacilones
+# Crear registro de asistencia abierto para los empleados con horario flexible
 for emp in employees:
-    if emp.username in ["tralalero", "tralala"]:
+    if emp.username in ["roberto", "laura"]:
         AttendanceRegister.objects.create(
             employee=emp,
             timestamp_in=timezone.now(),
@@ -291,9 +296,10 @@ for emp in employees:
 
 print("\nDatos de prueba creados exitosamente!")
 print("\nResumen:")
-print(f"- Empleados: {len(employees) + 1} (incluyendo admin)")
+print("- Admin principal: Reyner Paniagua (pin: 8888)")
+print(f"- Empleados: {len(employees)}")
 print(f"- Período de pago activo: {pay_period.description}")
 print("- Registros de asistencia creados")
 print("\nPuedes acceder al sistema con estos usuarios:")
-print("Admin: username=admin, password=admin123")
-print("Empleados: username=[maria|juan|carlos], password=password123")
+print("Admin: username=reyner, password=admin123")
+print("Empleados: username=[maria|juan|carlos|roberto|laura], password=password123")

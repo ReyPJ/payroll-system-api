@@ -7,14 +7,6 @@
 - **Request Body:**
   ```json
   {
-    "method": "fingerprint",
-    "hash": "admin_hash_value"
-  }
-  ```
-  o
-  ```json
-  {
-    "method": "pin",
     "unique_pin": "1234"
   }
   ```
@@ -23,13 +15,60 @@
   {
     "access": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
     "refresh": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
-    "user": {
-      "id": 1,
-      "username": "admin",
-      "first_name": "Admin",
-      "last_name": "Usuario",
-      "is_admin": true
-    }
+    "username": "admin",
+    "is_admin": true
+  }
+  ```
+
+## Endpoints de NFC Token
+
+**Endpoint:** `POST /v1/auth/nfc/create/`
+
+- **Headers:** `Authorization: Bearer <token_jwt>`
+- **Request Body:**
+  ```json
+  {
+    "employee_id": 2,
+    "tag_id": "ABC123XYZ"
+  }
+  ```
+- **Response:**
+  ```json
+  {
+    "id": 1,
+    "employee": 2,
+    "tag_id": "ABC123XYZ",
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+    "revoked": false,
+    "created_at": "2025-05-10T14:30:00Z"
+  }
+  ```
+
+**Endpoint:** `POST /v1/auth/nfc/validate/`
+
+- **Request Body:**
+  ```json
+  {
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+  }
+  ```
+- **Response:** (información del payload)
+  ```json
+  {
+    "employee_id": 2,
+    "tag_id": "ABC123XYZ",
+    "exp": 1620000000,
+    "iat": 1588464000
+  }
+  ```
+
+**Endpoint:** `POST /v1/auth/nfc/revoke/<id>/`
+
+- **Headers:** `Authorization: Bearer <token_jwt>`
+- **Response:**
+  ```json
+  {
+    "message": "Token NFC revocado exitosamente"
   }
   ```
 
@@ -50,12 +89,8 @@
       "salary_hour": 25.0,
       "biweekly_hours": 96.0,
       "night_shift_factor": 1.0,
-      "use_finger_print": true,
-      "use_face_id": false,
-      "fingerprint_hash": "admin-fingerprint-verification",
-      "face_tamplate": null,
       "phone": "",
-      "unique_pin": null
+      "unique_pin": "1234"
     }
   ]
   ```
@@ -75,7 +110,6 @@
     "biweekly_hours": 96.0,
     "night_shift_factor": 1.2,
     "phone": "+50688886666",
-    "use_finger_print": false,
     "unique_pin": "1234"
   }
   ```
@@ -88,32 +122,39 @@
 - **Request Body:**
   ```json
   {
-    "method": "fingerprint",
-    "hash": "admin_hash_value"
-  }
-  ```
-  o
-  ```json
-  {
-    "method": "pin",
-    "unique_pin": "1234"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
   ```
 - **Response:**
   ```json
-  {
-    "message": "Entrada registrada exitosamente para juan"
-  }
+  [
+    {
+      "message": "Entrada registrada exitosamente para juan"
+    },
+    {
+      "employee_name": "Juan Médico"
+    }
+  ]
   ```
 
 **Endpoint:** `POST /v1/attendance/out/`
 
-- **Request Body:** Igual que para entrada
-- **Response:**
+- **Request Body:**
   ```json
   {
-    "message": "Salida registrada exitosamente para juan"
+    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
   }
+  ```
+- **Response:**
+  ```json
+  [
+    {
+      "message": "Salida registrada exitosamente para juan"
+    },
+    {
+      "employee_name": "Juan Médico"
+    }
+  ]
   ```
 
 ## Endpoints de Horarios
