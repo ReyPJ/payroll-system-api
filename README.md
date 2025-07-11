@@ -4,13 +4,14 @@ API REST para el registro de asistencia de empleados, cálculo de horas trabajad
 
 ## Características Principales
 
-- Marcaje de entrada/salida mediante huella digital o reconocimiento facial
-- Cálculo automático de horas trabajadas (regulares y extras)
+- Registro de empleados y administradores
+- Marcaje de entrada/salida mediante token NFC
+- Cálculo automático de horas trabajadas (regulares, extras y nocturnas)
 - Soporte para turnos nocturnos con factor de pago personalizable
 - Administración de períodos de pago quincenales
 - Notificaciones automáticas por WhatsApp
 - Recordatorios automáticos de cierre de quincena a administradores
-- Cálculo automático de salarios
+- Cálculo automático de salarios con deducciones configurables
 
 ## Configuración
 
@@ -18,8 +19,10 @@ API REST para el registro de asistencia de empleados, cálculo de horas trabajad
 
 - Python 3.12+
 - Django 5.1+
-- PostgreSQL/SQLite
+- Django REST Framework 3.15+
+- SQLite/PostgreSQL
 - Redis (para Celery)
+- Twilio (para notificaciones WhatsApp)
 
 ### Instalación
 
@@ -61,7 +64,7 @@ TWILIO_ACCOUNT_SID=your_twilio_sid
 TWILIO_AUTH_TOKEN=your_twilio_token
 TWILIO_WHATSAPP_NUMBER=your_twilio_whatsapp_number
 TWILIO_MESSAGE_TEMPLATE_ID=your_template_id_for_attendance_notifications
-TWILIO_MESSAGE_TEMPLATE_ID_2=your_template_id_for_admin_reminders
+TWILIO_MESSAGE_TEMPLATE_ID_ADMIN_REMINDER=your_template_id_for_admin_reminders
 
 # Base de Datos (opcional si se usa SQLite)
 DB_NAME=payroll_db
@@ -70,6 +73,16 @@ DB_PASSWORD=password
 DB_HOST=localhost
 DB_PORT=5432
 ```
+
+## Estructura del Proyecto
+
+El proyecto está organizado en varios módulos:
+
+- **employee**: Gestión de usuarios (empleados y administradores)
+- **attendance**: Registro de marcajes de entrada/salida
+- **timers**: Configuración de horarios por empleado
+- **payrolls**: Cálculo de planillas y períodos de pago
+- **authentication**: Autenticación y gestión de tokens NFC
 
 ## Flujo de Trabajo Completo
 
@@ -105,19 +118,19 @@ DB_PORT=5432
      "biweekly_hours": 96.0,
      "night_shift_factor": 1.0,
      "phone": "+50688887777",
-     "use_finger_print": true,
-     "fingerprint_hash": "sample_hash_123"
+     "unique_pin": "1234"
    }
    ```
 
-3. **Autenticarse como admin:**
+3. **Autenticarse:**
 
    ```bash
    POST /v1/auth/
    Content-Type: application/json
 
    {
-     "fingerprint": "sample_hash_123"
+     "username": "admin1",
+     "password": "securepassword"
    }
    ```
 
@@ -142,8 +155,7 @@ DB_PORT=5432
      "biweekly_hours": 96.0,
      "night_shift_factor": 1.2,
      "phone": "+50688886666",
-     "use_finger_print": true,
-     "fingerprint_hash": "juan_finger_hash"
+     "unique_pin": "5678"
    }
    ```
 
@@ -183,34 +195,48 @@ DB_PORT=5432
    ```
 
 3. **Verificar horarios configurados:**
+
    ```bash
    GET /v1/timer/<employee_id>/timers/
    Authorization: Bearer <tu_token>
    ```
 
+4. **Registrar token NFC para empleado:**
+
+   ```bash
+   POST /v1/auth/nfc/generate/
+   Content-Type: application/json
+   Authorization: Bearer <tu_token>
+
+   {
+     "employee_id": 2,
+     "tag_id": "nfc_tag_12345"
+   }
+   ```
+
 ### 3. Operación Diaria
 
-1. **Marcaje de entrada:**
+1. **Marcaje de entrada con NFC:**
 
    ```bash
    POST /v1/attendance/in/
    Content-Type: application/json
 
    {
-     "method": "fingerprint",
-     "hash": "juan_finger_hash"
+     "method": "nfc",
+     "token": "token_nfc_generado"
    }
    ```
 
-2. **Marcaje de salida:**
+2. **Marcaje de salida con NFC:**
 
    ```bash
    POST /v1/attendance/out/
    Content-Type: application/json
 
    {
-     "method": "fingerprint",
-     "hash": "juan_finger_hash"
+     "method": "nfc",
+     "token": "token_nfc_generado"
    }
    ```
 
@@ -284,11 +310,13 @@ El sistema funciona de la siguiente manera:
    - **Horas regulares**: Hasta el límite quincenal configurado (default 96 horas)
    - **Horas extras**: Todas las que excedan el límite quincenal
    - **Horas nocturnas**: Las trabajadas en turnos nocturnos (dentro de las regulares)
+   - **Deducción por almuerzo**: Configurable por registro de asistencia
 
 4. Cálculo de salario:
    - **Pago regular**: Horas regulares × Salario por hora
    - **Pago nocturno**: Horas nocturnas × Salario por hora × (Factor nocturno - 1)
    - **Pago extra**: Horas extras × Salario por hora × 1.5
+   - **Deducciones**: Incluye almuerzo y otras deducciones configurables
 
 ## Notificaciones
 
@@ -296,8 +324,8 @@ El sistema funciona de la siguiente manera:
 
 El sistema envía notificaciones automáticas por WhatsApp cuando:
 
-- Un empleado no marca entrada en su horario programado
-- Un empleado no marca salida después de su horario
+- Un empleado no marca entrada en su horario programado (después de 10 minutos de tolerancia)
+- Un empleado no marca salida después de su horario (después de 5 minutos de tolerancia)
 
 ### Recordatorios a Administradores
 
@@ -305,14 +333,25 @@ El sistema envía recordatorios automáticos por WhatsApp a los administradores:
 
 - Los días 14 y 28 de cada mes (recordatorio de cierre de quincena)
 - El mensaje se envía a todos los usuarios con `is_admin=True`
-- Requiere configurar la variable `TWILIO_MESSAGE_TEMPLATE_ID_2` en las variables de entorno
+- Requiere configurar la variable `TWILIO_MESSAGE_TEMPLATE_ID_ADMIN_REMINDER` en las variables de entorno
 
 Para que esta función opere correctamente:
 
 - Asegurarse de que los administradores tengan número de teléfono registrado
-- Verificar que las fechas en el código (`payrolls/tasks.py`) y en la programación (`settings.py`) sean consistentes
+- Verificar que las fechas en la configuración de Celery sean consistentes
 - Todos los administradores deben tener el flag `is_admin=True` en su perfil
 
-## Soporte
+## Tareas Programadas (Celery)
 
-Para soporte técnico, contactar a: soporte@example.com
+El sistema utiliza Celery para las siguientes tareas:
+
+- Verificación de asistencia cada 15 minutos para enviar notificaciones
+- Recordatorios a administradores los días 14 y 28 para cierre de quincena
+
+## API Documentation
+
+La documentación de la API está disponible en:
+
+- `/api/schema/swagger-ui/` - Para visualizar con Swagger UI
+- `/api/schema/redoc/` - Para visualizar con ReDoc
+- `/api/schema/` - Para descargar el esquema OpenAPI
