@@ -5,7 +5,7 @@ from attendance.models import AttendanceRegister, AttendanceDetail
 class AttendanceRegisterSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
 
-    class Meta:
+    class Meta: #type: ignore
         model = AttendanceRegister
         fields = [
             "id",
@@ -28,7 +28,7 @@ class AttendanceDetailSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     formatted_date = serializers.SerializerMethodField()
 
-    class Meta:
+    class Meta: #type: ignore
         model = AttendanceDetail
         fields = [
             "id",

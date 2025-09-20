@@ -1,3 +1,9 @@
+import os
+import django
+
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "core.settings")
+django.setup()
+
 from employee.models import Employee
 
 # Crear un usuario admin con valores apropiados
@@ -9,9 +15,8 @@ admin = Employee.objects.create_superuser(
     is_admin=True,
     salary_hour=25.0,
     biweekly_hours=96.0,
-    night_shift_factor=1.0,
-    use_finger_print=True,
-    fingerprint_hash="admin-fingerprint-verification",
+    night_shift_factor=1.2,
+    unique_pin="8888",
 )
 
 print(

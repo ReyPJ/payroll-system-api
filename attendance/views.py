@@ -70,6 +70,7 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = AttendanceRegisterSerializer
 
+    @staticmethod
     def post(self, request, *args, **kwargs):
         data = request.data
         nfc_token = data.get("token")
@@ -133,6 +134,7 @@ class AttendanceStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AttendanceStatsResponseSerializer
 
+    @staticmethod
     def get(self, request):
         period_id = request.query_params.get("period_id")
 
@@ -225,7 +227,7 @@ class AttendanceStatsView(APIView):
 
             stats.append(
                 {
-                    "employee_id": employee.id,
+                    "employee_id": employee.id, # type: ignore
                     "employee_name": employee.get_full_name(),
                     "username": employee.username,
                     "days_worked": days_worked,
@@ -243,7 +245,7 @@ class AttendanceStatsView(APIView):
         # Usar los serializers para validar y serializar los datos
         data = {
             "pay_period": {
-                "id": pay_period.id,
+                "id": pay_period.id, # type: ignore
                 "description": pay_period.description,
                 "start_date": pay_period.start_date,
                 "end_date": pay_period.end_date,

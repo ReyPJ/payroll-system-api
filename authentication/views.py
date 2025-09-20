@@ -13,6 +13,7 @@ from employee.models import Employee
 class CustomTokenObtainPairView(APIView):
     serializer_class = CustomTokenObtainPairSerializer
 
+    @staticmethod
     def post(self, request, *args, **kwargs):
         serializer = CustomTokenObtainPairSerializer(data=request.data)
         if serializer.is_valid():
@@ -24,6 +25,7 @@ class NFCTokenCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = NFCTokenSerializer
 
+    @staticmethod
     def post(self, request):
         employee_id = request.data.get("employee_id")
         tag_id = request.data.get("tag_id")
@@ -54,6 +56,7 @@ class NFCTokenValidateView(APIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = NFCTokenValidateSerializer
 
+    @staticmethod
     def post(self, request):
         serializer = NFCTokenValidateSerializer(data=request.data)
         if serializer.is_valid():
@@ -65,6 +68,7 @@ class NFCTokenRevokeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = NFCTokenSerializer
 
+    @staticmethod
     def post(self, request, pk):
         try:
             nfc_token = NFCToken.objects.get(pk=pk)

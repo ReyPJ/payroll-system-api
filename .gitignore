@@ -1,7 +1,11 @@
 # Byte-compiled / optimized / DLL files
+migrations/
 __pycache__/
 *.py[cod]
 *$py.class
+*/migrations/*
+.idea
+
 
 # C extensions
 *.so

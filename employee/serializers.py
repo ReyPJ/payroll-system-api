@@ -4,7 +4,7 @@ from employee.models import Employee
 
 
 class EmployeeSerializer(ModelSerializer):
-    class Meta:
+    class Meta: #type: ignore
         model = Employee
         fields = [
             "salary_hour",

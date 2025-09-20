@@ -31,7 +31,7 @@ class CustomTokenObtainPairSerializer(serializers.Serializer):
 
 
 class NFCTokenSerializer(serializers.ModelSerializer):
-    class Meta:
+    class Meta: #type: ignore
         model = NFCToken
         fields = ["id", "employee", "tag_id", "token", "revoked", "created_at"]
         read_only_fields = ["token", "revoked", "created_at"]

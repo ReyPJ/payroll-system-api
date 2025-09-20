@@ -7,7 +7,7 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
     has_night_hours = serializers.SerializerMethodField()
     period_name = serializers.SerializerMethodField()
 
-    class Meta:
+    class Meta: #type: ignore
         model = SalaryRecord
         fields = [
             "id",
@@ -44,7 +44,7 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
 
 class PayPeriodSerializer(serializers.ModelSerializer):
 
-    class Meta:
+    class Meta: #type: ignore
         model = PayPeriod
         fields = [
             "id",
@@ -60,10 +60,10 @@ class SalaryCalculationSerializer(serializers.Serializer):
     apply_night_factor = serializers.BooleanField(default=False)
     period_id = serializers.IntegerField(required=False)
     lunch_deduction_hours = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False, default=0
+        max_digits=5, decimal_places=2, required=False, default=0 #type: ignore
     )
     other_deductions = serializers.DecimalField(
-        max_digits=10, decimal_places=2, required=False, default=0
+        max_digits=10, decimal_places=2, required=False, default=0 #type: ignore
     )
     other_deductions_description = serializers.CharField(
         max_length=255, required=False, allow_blank=True
@@ -88,10 +88,10 @@ class CalculateAllSalariesSerializer(serializers.Serializer):
     period_id = serializers.IntegerField(required=True)
     apply_night_factor = serializers.BooleanField(default=True)
     lunch_deduction_hours = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False, default=0
+        max_digits=5, decimal_places=2, required=False, default=0 # type: ignore
     )
     other_deductions = serializers.DecimalField(
-        max_digits=10, decimal_places=2, required=False, default=0
+        max_digits=10, decimal_places=2, required=False, default=0 # type: ignore
     )
     other_deductions_description = serializers.CharField(
         max_length=255, required=False, allow_blank=True

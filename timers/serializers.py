@@ -8,7 +8,7 @@ class TimerSeriealizer(serializers.ModelSerializer):
         source="employee.username", read_only=True
     )
 
-    class Meta:
+    class Meta: #type: ignore
         model = Timer
         fields = [
             "id",
@@ -34,7 +34,7 @@ class TimerSeriealizer(serializers.ModelSerializer):
         ]
         return days[obj.day]
 
-    def validate(self, data):
+    def validate(self, data): #type: ignore
         # Para turnos nocturnos permitimos que la hora de salida sea menor que la de entrada
         if not data.get("is_night_shift") and data.get("timeOut") <= data.get("timeIn"):
             raise serializers.ValidationError(

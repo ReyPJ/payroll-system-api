@@ -17,30 +17,6 @@ from django.utils import timezone  # noqa: E402
 
 print("Creando datos de prueba para el sistema de nómina...")
 
-# Crear o verificar el admin principal
-print("Verificando admin principal...")
-admin, admin_created = Employee.objects.get_or_create(
-    username="reyner",
-    defaults={
-        "first_name": "Reyner",
-        "last_name": "Paniagua",
-        "email": "reyner@example.com",
-        "is_staff": True,
-        "is_superuser": True,
-        "unique_pin": "8888",
-        "salary_hour": Decimal("10000.00"),
-        "biweekly_hours": Decimal("96.0"),
-        "night_shift_factor": Decimal("1.00"),
-    },
-)
-
-if admin_created:
-    admin.set_password("admin123")
-    admin.save()
-    print("Admin principal creado: Reyner Paniagua")
-else:
-    print("Admin principal ya existe")
-
 # Limpiar datos existentes
 print("Limpiando datos existentes...")
 Timer.objects.all().delete()
@@ -263,11 +239,10 @@ def generate_attendance(employee, start_date, days_count=7):
                 employee=employee,
                 timestamp_in=timestamp_in,
                 timestamp_out=timestamp_out,
-                method="pin",
-                hash="",
+                method="nfc",
                 paid=False,
                 sync=True,
-                unique_pin=employee.unique_pin,
+                pay_period=pay_period,
             )
             created_count += 1
 
@@ -286,11 +261,10 @@ for emp in employees:
             employee=emp,
             timestamp_in=timezone.now(),
             timestamp_out=None,
-            method="pin",
-            hash="",
+            method="nfc",
             paid=False,
             sync=True,
-            unique_pin=emp.unique_pin,
+            pay_period=pay_period,
         )
         print(f"Registro de asistencia ABIERTO creado para {emp.username}")
 
@@ -300,6 +274,4 @@ print("- Admin principal: Reyner Paniagua (pin: 8888)")
 print(f"- Empleados: {len(employees)}")
 print(f"- Período de pago activo: {pay_period.description}")
 print("- Registros de asistencia creados")
-print("\nPuedes acceder al sistema con estos usuarios:")
-print("Admin: username=reyner, password=admin123")
 print("Empleados: username=[maria|juan|carlos|roberto|laura], password=password123")
