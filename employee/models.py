@@ -4,7 +4,7 @@ from django.utils import timezone
 
 
 class Employee(AbstractUser):
-    phone = models.CharField(max_length=20, blank=True, null=True),
+    phone = models.CharField(max_length=20, blank=True, null=True)
     salary_hour = models.DecimalField(max_digits=10, decimal_places=2)
     biweekly_hours = models.DecimalField(max_digits=5, decimal_places=2, default=96.0)
     night_shift_factor = models.DecimalField(

@@ -70,7 +70,6 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
     permission_classes = [permissions.AllowAny]
     serializer_class = AttendanceRegisterSerializer
 
-    @staticmethod
     def post(self, request, *args, **kwargs):
         data = request.data
         nfc_token = data.get("token")
@@ -134,7 +133,6 @@ class AttendanceStatsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = AttendanceStatsResponseSerializer
 
-    @staticmethod
     def get(self, request):
         period_id = request.query_params.get("period_id")
 

@@ -13,7 +13,6 @@ https://docs.djangoproject.com/en/5.1/ref/settings/
 from pathlib import Path
 from dotenv import load_dotenv
 from datetime import timedelta
-from celery.schedules import crontab
 import os
 
 load_dotenv()
@@ -26,16 +25,22 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-h35+to+)s*mp)4+sq&(^rwxb5luk4r4tj8q5#9^s1&r#@vb@z4"
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-h35+to+)s*mp)4+sq&(^rwxb5luk4r4tj8q5#9^s1&r#@vb@z4")
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = os.getenv("DEBUG", "False") == "True"
 
-ALLOWED_HOSTS = ["192.168.1.78", "127.0.0.1", "localhost"]
+ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
+# CORS Configuration
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
 CORS_ALLOWED_ORIGINS = [
+    FRONTEND_URL,
     "http://localhost:3000",
 ]
+
+# CSRF Trusted Origins
+CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
 
 
 # Application definition
@@ -159,6 +164,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/5.1/howto/static-files/
 
 STATIC_URL = "static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/5.1/ref/settings/#default-auto-field
@@ -168,21 +174,35 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(hours=24)}
 
+# Production Security Settings
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
 
-TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
-TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
-TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
-TWILIO_MESSAGE_TEMPLATE_ID = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID")
-TWILIO_MESSAGE_TEMPLATE_ID_2 = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID_ADMIN_REMINDER")
+if ENVIRONMENT == "production":
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = "DENY"
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
 
-CELERY_BROKER_URL = "redis://localhost:6379/0"
-CELERY_BEAT_SCHEDULE = {
-    "check_attendance": {
-        "task": "payrolls.tasks.check_attendance",
-        "schedule": crontab(minute="*/15"),  # Cada 1 minuto
-    },
-    "remind_pay_period_to_admin": {
-        "task": "payrolls.tasks.remind_pay_period_to_admin",
-        "schedule": crontab(day_of_month="14,28"),
-    },
-}
+# Celery, Redis, and Twilio settings removed for Railway deployment
+# TWILIO_ACCOUNT_SID = os.getenv("TWILIO_ACCOUNT_SID")
+# TWILIO_AUTH_TOKEN = os.getenv("TWILIO_AUTH_TOKEN")
+# TWILIO_WHATSAPP_NUMBER = os.getenv("TWILIO_WHATSAPP_NUMBER")
+# TWILIO_MESSAGE_TEMPLATE_ID = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID")
+# TWILIO_MESSAGE_TEMPLATE_ID_2 = os.getenv("TWILIO_MESSAGE_TEMPLATE_ID_ADMIN_REMINDER")
+
+# CELERY_BROKER_URL = "redis://localhost:6379/0"
+# CELERY_BEAT_SCHEDULE = {
+#     "check_attendance": {
+#         "task": "payrolls.tasks.check_attendance",
+#         "schedule": crontab(minute="*/15"),
+#     },
+#     "remind_pay_period_to_admin": {
+#         "task": "payrolls.tasks.remind_pay_period_to_admin",
+#         "schedule": crontab(day_of_month="14,28"),
+#     },
+# }
