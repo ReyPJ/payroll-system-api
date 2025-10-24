@@ -35,6 +35,11 @@ ALLOWED_HOSTS = os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
 
 # CORS Configuration
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:3000")
+
+# Ensure FRONTEND_URL has a scheme
+if FRONTEND_URL and not FRONTEND_URL.startswith(("http://", "https://")):
+    FRONTEND_URL = f"https://{FRONTEND_URL}"
+
 CORS_ALLOWED_ORIGINS = [
     FRONTEND_URL,
     "http://localhost:3000",
