@@ -98,10 +98,10 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Buscar registro de entrada pendiente
+        # Buscar registro de entrada pendiente (más reciente primero)
         attendance = AttendanceRegister.objects.filter(
             employee=employee, timestamp_out__isnull=True
-        ).first()
+        ).order_by('-timestamp_in').first()
 
         if not attendance:
             return Response(
