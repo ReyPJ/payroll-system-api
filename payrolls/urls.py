@@ -7,6 +7,7 @@ from payrolls.views import (
     ListSalaryRecordsByPeriod,
     SalaryRecordEmployeeDetail,
     EmployeeAttendanceDetailView,
+    LiveAttendanceSummaryView,
 )
 from payrolls.views_admin import ResetAttendancePaidStatusView
 
@@ -29,6 +30,12 @@ urlpatterns = [
         "attendance-details/",
         EmployeeAttendanceDetailView.as_view(),
         name="employee-attendance-details",
+    ),
+    # Resumen en tiempo real de horas acumuladas (sin calcular salario)
+    path(
+        "live-summary/",
+        LiveAttendanceSummaryView.as_view(),
+        name="live-attendance-summary",
     ),
     # Endpoints administrativos (solo para staff/superuser)
     path(

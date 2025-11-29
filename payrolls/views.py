@@ -4,7 +4,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework import status
 from rest_framework.views import APIView
 from employee.models import Employee
-from payrolls.services.calculate_payroll import calculate_pay_to_go, is_night_shift
+from payrolls.services.calculate_payroll import calculate_pay_to_go, calculate_night_hours
 from payrolls.models import SalaryRecord, PayPeriod
 from payrolls.serializers import (
     SalaryRecordSerializer,
@@ -339,21 +339,23 @@ class ListEmployeesWithNightHours(APIView):
                 timestamp_in_local = localtime(register.timestamp_in)
                 timestamp_out_local = localtime(register.timestamp_out)
 
-                # Verificar si el turno es nocturno
+                # Verificar si el turno es nocturno según Timer
                 day_of_week = timestamp_in_local.weekday()
                 timer = Timer.objects.filter(
                     employee=employee, day=day_of_week, is_active=True
                 ).first()
 
-                is_night = False
+                # Calcular horas nocturnas REALES
                 if timer and timer.is_night_shift:
-                    is_night = True
-                elif is_night_shift(timestamp_in_local, timestamp_out_local):
-                    is_night = True
+                    # Si el timer está marcado como nocturno, todas las horas cuentan
+                    night_hours_for_shift = timestamp_out_local - timestamp_in_local
+                else:
+                    # Calcular solo las horas que realmente cayeron en horario nocturno
+                    night_hours_for_shift = calculate_night_hours(timestamp_in_local, timestamp_out_local)
 
-                if is_night:
+                if night_hours_for_shift.total_seconds() > 0:
                     has_night_hours = True
-                    total_night_hours += timestamp_out_local - timestamp_in_local
+                    total_night_hours += night_hours_for_shift
 
             if has_night_hours:
                 night_hours_decimal = Decimal(
@@ -580,3 +582,165 @@ class EmployeeAttendanceDetailView(generics.ListAPIView):
             ).order_by("work_date")
         except Exception:
             return AttendanceDetail.objects.none()
+
+
+class LiveAttendanceSummaryView(APIView):
+    """
+    Obtiene un resumen en tiempo real de las horas acumuladas en el período activo
+    SIN calcular el salario ni marcar registros como pagados.
+
+    GET /payrolls/live-summary/?period_id=5&employee_id=10
+    GET /payrolls/live-summary/?period_id=5  (todos los empleados)
+
+    Respuesta:
+    {
+        "period": {...},
+        "employees": [
+            {
+                "employee_id": 10,
+                "employee_username": "juan.perez",
+                "total_hours": "112.5",
+                "regular_hours": "96.0",
+                "night_hours": "2.5",
+                "extra_hours": "16.5",
+                "estimated_salary": "1250.00",
+                "days_worked": 14,
+                "pending_checkout": 0
+            }
+        ]
+    }
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        period_id = request.query_params.get("period_id")
+        employee_id = request.query_params.get("employee_id")
+
+        # Si no se proporciona period_id, buscar el período activo
+        if period_id:
+            try:
+                pay_period = PayPeriod.objects.get(id=period_id)
+            except PayPeriod.DoesNotExist:
+                return Response(
+                    {"error": f"No existe un período de pago con ID {period_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            pay_period = PayPeriod.objects.filter(is_closed=False).first()
+            if not pay_period:
+                return Response(
+                    {"error": "No hay período de pago activo"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+
+        # Obtener empleados a procesar
+        if employee_id:
+            try:
+                employees = [Employee.objects.get(id=employee_id)]
+            except Employee.DoesNotExist:
+                return Response(
+                    {"error": f"No existe empleado con ID {employee_id}"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
+        else:
+            # Todos los empleados con registros en este período
+            employees = Employee.objects.filter(
+                attendanceregister__timestamp_in__date__gte=pay_period.start_date,
+                attendanceregister__timestamp_in__date__lte=pay_period.end_date,
+            ).distinct()
+
+        employees_summary = []
+
+        for employee in employees:
+            # Obtener todos los registros (pagados y no pagados) para ver el total real
+            records = AttendanceRegister.objects.filter(
+                employee=employee,
+                timestamp_in__date__gte=pay_period.start_date,
+                timestamp_in__date__lte=pay_period.end_date,
+            ).order_by("timestamp_in")
+
+            if not records.exists():
+                continue
+
+            total_worked_hours = timedelta()
+            total_night_hours = timedelta()
+            pending_checkout = 0
+            days_worked = set()
+
+            for record in records:
+                if not record.timestamp_out:
+                    pending_checkout += 1
+                    continue
+
+                timestamp_in_local = localtime(record.timestamp_in)
+                timestamp_out_local = localtime(record.timestamp_out)
+
+                if timestamp_out_local <= timestamp_in_local:
+                    continue
+
+                worked_hours = timestamp_out_local - timestamp_in_local
+                days_worked.add(timestamp_in_local.date())
+
+                # Calcular horas nocturnas
+                day_of_week = timestamp_in_local.weekday()
+                timer = Timer.objects.filter(
+                    employee=employee, day=day_of_week, is_active=True
+                ).first()
+
+                if timer and timer.is_night_shift:
+                    night_hours_for_shift = worked_hours
+                else:
+                    night_hours_for_shift = calculate_night_hours(
+                        timestamp_in_local, timestamp_out_local
+                    )
+
+                total_night_hours += night_hours_for_shift
+                total_worked_hours += worked_hours
+
+            # Convertir a decimal
+            total_hours = Decimal(total_worked_hours.total_seconds()) / Decimal(3600)
+            night_hours = Decimal(total_night_hours.total_seconds()) / Decimal(3600)
+
+            # Calcular horas regulares y extra
+            biweekly_limit = Decimal(employee.biweekly_hours)
+            regular_hours = min(total_hours, biweekly_limit)
+            extra_hours = max(Decimal("0"), total_hours - biweekly_limit)
+            night_hours = min(night_hours, regular_hours)
+
+            # Estimar salario (sin deducciones)
+            regular_pay = regular_hours * employee.salary_hour
+            night_premium = (
+                night_hours * employee.salary_hour * (employee.night_shift_factor - Decimal("1.0"))
+            )
+            extra_pay = extra_hours * employee.salary_hour * Decimal("1.5")
+            estimated_salary = regular_pay + night_premium + extra_pay
+
+            employees_summary.append(
+                {
+                    "employee_id": employee.id,
+                    "employee_username": employee.username,
+                    "employee_full_name": f"{employee.first_name} {employee.last_name}",
+                    "total_hours": str(total_hours.quantize(Decimal("0.01"))),
+                    "regular_hours": str(regular_hours.quantize(Decimal("0.01"))),
+                    "night_hours": str(night_hours.quantize(Decimal("0.01"))),
+                    "extra_hours": str(extra_hours.quantize(Decimal("0.01"))),
+                    "estimated_salary": str(estimated_salary.quantize(Decimal("0.01"))),
+                    "days_worked": len(days_worked),
+                    "pending_checkout": pending_checkout,
+                }
+            )
+
+        return Response(
+            {
+                "period": {
+                    "id": pay_period.id,
+                    "description": pay_period.description,
+                    "start_date": pay_period.start_date.isoformat(),
+                    "end_date": pay_period.end_date.isoformat(),
+                    "is_closed": pay_period.is_closed,
+                },
+                "employees": employees_summary,
+                "total_employees": len(employees_summary),
+            }
+        )
