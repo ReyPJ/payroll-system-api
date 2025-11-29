@@ -62,10 +62,41 @@ class CalculateSalary(generics.CreateAPIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
+        # VALIDACIÓN: Advertir si se está calculando antes del fin del período
+        today = date.today()
+        warnings = []
+
+        if today < pay_period.end_date:
+            days_remaining = (pay_period.end_date - today).days
+            warnings.append({
+                "type": "early_calculation",
+                "message": f"⚠️ ADVERTENCIA: Estás calculando el salario {days_remaining} día(s) antes del fin del período ({pay_period.end_date.strftime('%d/%m/%Y')})",
+                "details": "Si el empleado sigue trabajando, tendrás que recalcular usando el comando 'reset_attendance_paid_status'",
+                "days_remaining": days_remaining,
+                "period_end_date": pay_period.end_date.isoformat(),
+            })
+
         # Verificar si ya existe un SalaryRecord para este empleado y período
         salary_record = SalaryRecord.objects.filter(
             employee=employee, pay_period=pay_period
         ).first()
+
+        # VALIDACIÓN: Advertir si ya existe un cálculo previo
+        if salary_record:
+            paid_attendance_count = AttendanceRegister.objects.filter(
+                employee=employee,
+                pay_period=pay_period,
+                paid=True,
+            ).count()
+
+            warnings.append({
+                "type": "recalculation",
+                "message": f"⚠️ Ya existe un cálculo previo para este empleado en este período",
+                "details": f"Tienes {paid_attendance_count} registros de asistencia ya marcados como pagados. El cálculo se actualizará pero solo con registros nuevos no pagados.",
+                "previous_calculation_date": salary_record.paid_at.isoformat(),
+                "previous_total_hours": str(salary_record.total_hours),
+                "previous_salary": str(salary_record.salary_to_pay),
+            })
 
         # Llamamos a la función que calcula el salario con el period_id si se proporcionó
         salary_data = calculate_pay_to_go(
@@ -120,7 +151,16 @@ class CalculateSalary(generics.CreateAPIView):
             )
 
         serializer = SalaryRecordSerializer(salary_record)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+        # Construir respuesta con advertencias si existen
+        response_data = serializer.data
+        if warnings:
+            response_data = {
+                "salary_record": serializer.data,
+                "warnings": warnings,
+            }
+
+        return Response(response_data, status=status.HTTP_201_CREATED)
 
 
 class ManagePayPeriodView(APIView):
@@ -370,6 +410,20 @@ class CalculateAllSalaries(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # VALIDACIÓN: Advertir si se está calculando antes del fin del período
+        today = date.today()
+        warnings = []
+
+        if today < pay_period.end_date:
+            days_remaining = (pay_period.end_date - today).days
+            warnings.append({
+                "type": "early_calculation",
+                "message": f"⚠️ ADVERTENCIA: Estás calculando salarios {days_remaining} día(s) antes del fin del período ({pay_period.end_date.strftime('%d/%m/%Y')})",
+                "details": "Si los empleados siguen trabajando, tendrás que recalcular usando el comando 'reset_attendance_paid_status'",
+                "days_remaining": days_remaining,
+                "period_end_date": pay_period.end_date.isoformat(),
+            })
+
         # Obtener empleados con registros en el período
         employees = Employee.objects.filter(
             attendanceregister__timestamp_in__date__gte=pay_period.start_date,
@@ -454,14 +508,18 @@ class CalculateAllSalaries(APIView):
         # Serializar y devolver resultados
         serializer = SalaryRecordSerializer(salary_records, many=True)
 
-        return Response(
-            {
-                "message": "Cálculo de planilla completado",
-                "records": serializer.data,
-                "total_planilla": total_planilla,
-                "empleados_procesados": len(salary_records),
-            }
-        )
+        response_data = {
+            "message": "Cálculo de planilla completado",
+            "records": serializer.data,
+            "total_planilla": total_planilla,
+            "empleados_procesados": len(salary_records),
+        }
+
+        # Agregar advertencias si existen
+        if warnings:
+            response_data["warnings"] = warnings
+
+        return Response(response_data)
 
 
 class ListSalaryRecordsByPeriod(generics.ListAPIView):

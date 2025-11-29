@@ -8,6 +8,7 @@ from payrolls.views import (
     SalaryRecordEmployeeDetail,
     EmployeeAttendanceDetailView,
 )
+from payrolls.views_admin import ResetAttendancePaidStatusView
 
 urlpatterns = [
     path("calculate/", CalculateSalary.as_view(), name="calculate-salary"),
@@ -28,5 +29,11 @@ urlpatterns = [
         "attendance-details/",
         EmployeeAttendanceDetailView.as_view(),
         name="employee-attendance-details",
+    ),
+    # Endpoints administrativos (solo para staff/superuser)
+    path(
+        "admin/reset-attendance/",
+        ResetAttendancePaidStatusView.as_view(),
+        name="reset-attendance-paid-status",
     ),
 ]
