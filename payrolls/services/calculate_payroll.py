@@ -7,12 +7,48 @@ from decimal import Decimal
 from payrolls.models import PayPeriod
 
 
+def calculate_night_hours(timestamp_in, timestamp_out):
+    """
+    Calcula las horas nocturnas reales trabajadas en un turno.
+    Horario nocturno: 7:00 PM (19:00) a 6:00 AM (06:00)
+
+    Returns:
+        timedelta: Horas trabajadas en horario nocturno
+    """
+    night_start = time(19, 0)  # 7:00 PM
+    night_end = time(6, 0)  # 6:00 AM
+
+    total_night = timedelta()
+    current = timestamp_in
+
+    while current < timestamp_out:
+        current_time = current.time()
+
+        # Calcular hasta dónde avanzar (máximo 1 hora o hasta timestamp_out)
+        next_hour = current + timedelta(hours=1)
+        if next_hour > timestamp_out:
+            next_hour = timestamp_out
+
+        # Verificar si esta hora está en período nocturno
+        # Nocturno es: >= 19:00 O < 06:00
+        is_night_hour = current_time >= night_start or current_time < night_end
+
+        if is_night_hour:
+            total_night += (next_hour - current)
+
+        current = next_hour
+
+    return total_night
+
+
 def is_night_shift(start_time, end_time):
     """
-    Determina si un turno es nocturno
-    Se considera nocturno si:
-    - Inicia después de las 7pm o antes de las 6am
-    - O termina después de las 7pm o antes de las 6am
+    DEPRECATED: Usa calculate_night_hours() en su lugar.
+    Esta función solo determina SI hay horas nocturnas, no CUÁNTAS.
+
+    Determina si un turno tiene alguna hora nocturna.
+    Se considera que tiene horas nocturnas si:
+    - Alguna parte del turno cae entre 7pm y 6am
     """
     night_start = time(19, 0)  # 7:00 PM
     night_end = time(6, 0)  # 6:00 AM
@@ -115,21 +151,17 @@ def calculate_pay_to_go(
             employee=employee, day=day_of_week, is_active=True
         ).first()
 
-        # Si el timer está configurado como nocturno o si el horario cae en periodo nocturno
-        is_night = False
+        # Calcular horas nocturnas REALES (no binario)
+        # Si el timer está marcado como nocturno, todas las horas cuentan como nocturnas
         if timer and timer.is_night_shift:
-            is_night = True
-        elif is_night_shift(timestamp_in_local.time(), timestamp_out_local.time()):
-            is_night = True
-
-        if is_night:
-            total_night_hours += worked_hours
             night_hours_for_day = worked_hours
             regular_hours_for_day = timedelta(0)
         else:
-            night_hours_for_day = timedelta(0)
-            regular_hours_for_day = worked_hours
+            # Calcular solo las horas que realmente cayeron en horario nocturno
+            night_hours_for_day = calculate_night_hours(timestamp_in_local, timestamp_out_local)
+            regular_hours_for_day = worked_hours - night_hours_for_day
 
+        total_night_hours += night_hours_for_day
         total_worked_hours += worked_hours
 
         # Guardar detalles de este día
