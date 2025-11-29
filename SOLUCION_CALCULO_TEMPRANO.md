@@ -34,12 +34,83 @@ Si recalculan el 30/11 SIN ARREGLAR:
 
 ## ✅ SOLUCIÓN INMEDIATA (Para los 3 Empleados Afectados)
 
-### Opción 1: Identificar el ID del Período
+### 🚂 Para Proyectos en RAILWAY (Más Fácil - USA ESTO)
+
+Si tu proyecto está en Railway, usa el **endpoint de API** que creamos. No necesitas CLI:
+
+#### Paso 1: Identificar IDs (Usa tu admin de Django o base de datos)
+
+Necesitas saber:
+- ID del período 15/11-30/11
+- IDs de los 3 empleados afectados
+
+#### Paso 2: Hacer Dry-Run (Ver qué se hará)
+
+```bash
+POST https://tu-app.railway.app/payrolls/admin/reset-attendance/
+Authorization: Bearer TU_TOKEN
+Content-Type: application/json
+
+{
+  "period_id": 5,
+  "employee_ids": [10, 15, 20],
+  "delete_salary_records": true,
+  "dry_run": true
+}
+```
+
+#### Paso 3: Ejecutar la Corrección Real
+
+Si el dry-run se ve bien, ejecuta sin `dry_run`:
+
+```bash
+POST https://tu-app.railway.app/payrolls/admin/reset-attendance/
+Authorization: Bearer TU_TOKEN
+Content-Type: application/json
+
+{
+  "period_id": 5,
+  "employee_ids": [10, 15, 20],
+  "delete_salary_records": true,
+  "dry_run": false
+}
+```
+
+**Respuesta esperada:**
+```json
+{
+  "message": "Operación completada exitosamente",
+  "dry_run": false,
+  "period": {
+    "id": 5,
+    "description": "Quincena 15/11/2024 - 30/11/2024"
+  },
+  "summary": {
+    "employees_processed": 3,
+    "attendance_reset": 42,
+    "details_deleted": 42,
+    "salary_records_deleted": 3
+  },
+  "next_steps": [
+    "Los empleados están listos para recalcular",
+    "Usa POST /payrolls/calculate/ para recalcular"
+  ]
+}
+```
+
+---
+
+### 💻 Para Proyectos LOCALES o con Railway CLI
+
+#### Opción 1: Identificar el ID del Período
 
 Primero, necesitas saber el ID del período de pago 15/11 - 30/11:
 
 ```bash
-# Entrar al shell de Django
+# Con Railway CLI
+railway run python manage.py shell
+
+# O localmente
 python manage.py shell
 
 # Buscar el período
@@ -53,7 +124,7 @@ print(f"Descripción: {period.description}")
 exit()
 ```
 
-### Opción 2: Resetear las Asistencias
+#### Opción 2: Resetear las Asistencias
 
 Una vez que tengas el ID del período (supongamos que es `5`) y los IDs de los 3 empleados afectados (supongamos `10, 15, 20`):
 
@@ -263,11 +334,57 @@ if salary_record:
 
 ---
 
-## 🎯 Acción Inmediata para tu Caso
+## 🎯 Acción Inmediata para tu Caso (RAILWAY)
+
+### Opción A: Usando el Endpoint de API (Recomendado)
+
+**1. Identifica los IDs desde tu admin de Django o base de datos**
+   - Ve a: https://tu-app.railway.app/admin/payrolls/payperiod/
+   - Busca el período "15/11/2024 - 30/11/2024"
+   - Anota el ID del período
+
+   - Ve a: https://tu-app.railway.app/admin/payrolls/salaryrecord/
+   - Filtra por el período
+   - Anota los IDs de los 3 empleados afectados
+
+**2. Usa Postman, Thunder Client o curl para hacer el dry-run**
+
+```bash
+curl -X POST https://tu-app.railway.app/payrolls/admin/reset-attendance/ \
+  -H "Authorization: Bearer TU_TOKEN_DE_AUTH" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "period_id": [ID_DEL_PERIODO],
+    "employee_ids": [[ID1], [ID2], [ID3]],
+    "delete_salary_records": true,
+    "dry_run": true
+  }'
+```
+
+**3. Si se ve bien, ejecuta sin dry_run**
+
+```bash
+curl -X POST https://tu-app.railway.app/payrolls/admin/reset-attendance/ \
+  -H "Authorization: Bearer TU_TOKEN_DE_AUTH" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "period_id": [ID_DEL_PERIODO],
+    "employee_ids": [[ID1], [ID2], [ID3]],
+    "delete_salary_records": true,
+    "dry_run": false
+  }'
+```
+
+**4. Recalcula los salarios normalmente**
+   - Usa tu API de cálculo como siempre
+
+---
+
+### Opción B: Usando Railway CLI
 
 ```bash
 # 1. Identificar el ID del período 15/11-30/11
-python manage.py shell
+railway run python manage.py shell
 >>> from payrolls.models import PayPeriod
 >>> period = PayPeriod.objects.filter(description__contains="15/11").first()
 >>> print(f"ID: {period.id}")
@@ -277,14 +394,14 @@ python manage.py shell
 # (Ya debes conocerlos)
 
 # 3. Hacer dry-run
-python manage.py reset_attendance_paid_status \
+railway run python manage.py reset_attendance_paid_status \
   --period-id=[ID_DEL_PERIODO] \
   --employees [ID1] [ID2] [ID3] \
   --delete-salary-records \
   --dry-run
 
 # 4. Si todo se ve bien, ejecutar sin --dry-run
-python manage.py reset_attendance_paid_status \
+railway run python manage.py reset_attendance_paid_status \
   --period-id=[ID_DEL_PERIODO] \
   --employees [ID1] [ID2] [ID3] \
   --delete-salary-records
