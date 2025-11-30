@@ -1,1 +1,1 @@
-web: python manage.py migrate && python manage.py collectstatic --noinput && python manage.py createsu && echo "Starting Gunicorn..." && gunicorn core.wsgi --bind 0.0.0.0:$PORT --log-file - --log-level debug --access-logfile - --error-logfile - --timeout 120 --workers 2
+web: python manage.py migrate && python manage.py collectstatic --noinput && gunicorn core.wsgi --bind 0.0.0.0:$PORT --log-file - --log-level info
