@@ -59,9 +59,6 @@ class SalaryCalculationSerializer(serializers.Serializer):
     employee_id = serializers.IntegerField()
     apply_night_factor = serializers.BooleanField(default=False)
     period_id = serializers.IntegerField(required=False)
-    lunch_deduction_hours = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False, default=0 #type: ignore
-    )
     other_deductions = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, default=0 #type: ignore
     )
@@ -87,9 +84,6 @@ class EmployeeNightHoursSerializer(serializers.Serializer):
 class CalculateAllSalariesSerializer(serializers.Serializer):
     period_id = serializers.IntegerField(required=True)
     apply_night_factor = serializers.BooleanField(default=True)
-    lunch_deduction_hours = serializers.DecimalField(
-        max_digits=5, decimal_places=2, required=False, default=0 # type: ignore
-    )
     other_deductions = serializers.DecimalField(
         max_digits=10, decimal_places=2, required=False, default=0 # type: ignore
     )

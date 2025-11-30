@@ -78,7 +78,6 @@ def calculate_pay_to_go(
     employee,
     apply_night_factor=False,
     period_id=None,
-    lunch_deduction_hours=0,
     other_deductions=0,
     other_deductions_description="",
 ):
@@ -89,12 +88,14 @@ def calculate_pay_to_go(
         employee: Objeto Employee
         apply_night_factor: Booleano que indica si se debe aplicar el factor de pago nocturno
         period_id: ID opcional del período de pago a calcular (si es None, usa el período activo)
-        lunch_deduction_hours: Horas a deducir por almuerzo
         other_deductions: Otras deducciones monetarias
         other_deductions_description: Descripción de las otras deducciones
 
     Returns:
         Diccionario con las horas calculadas y salario a pagar
+
+    Note:
+        Las horas de almuerzo se calculan automáticamente como 1 hora por cada día trabajado
     """
     if period_id:
         try:
@@ -201,8 +202,9 @@ def calculate_pay_to_go(
     # Limitar horas nocturnas al máximo de horas regulares
     night_hours = min(night_hours, regular_hours)
 
-    # Aplicar deducción de almuerzo
-    lunch_deduction_hours = Decimal(lunch_deduction_hours)
+    # Calcular deducción de almuerzo automáticamente: 1 hora por cada día trabajado
+    days_worked = len(attendance_details)
+    lunch_deduction_hours = Decimal(days_worked)
 
     # Distribuir las horas extra a los detalles diarios si hay horas extra
     if extra_hours > 0:

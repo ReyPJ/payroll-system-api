@@ -31,9 +31,6 @@ class CalculateSalary(generics.CreateAPIView):
         employee_id = serializer.validated_data["employee_id"]
         apply_night_factor = serializer.validated_data.get("apply_night_factor", False)
         period_id = serializer.validated_data.get("period_id", None)
-        lunch_deduction_hours = serializer.validated_data.get(
-            "lunch_deduction_hours", 0
-        )
         other_deductions = serializer.validated_data.get("other_deductions", 0)
         other_deductions_description = serializer.validated_data.get(
             "other_deductions_description", ""
@@ -103,7 +100,6 @@ class CalculateSalary(generics.CreateAPIView):
             employee,
             apply_night_factor,
             period_id,
-            lunch_deduction_hours,
             other_deductions,
             other_deductions_description,
         )
@@ -474,9 +470,6 @@ class CalculateAllSalaries(APIView):
 
         period_id = serializer.validated_data["period_id"]
         apply_night_factor = serializer.validated_data.get("apply_night_factor", True)
-        lunch_deduction_hours = serializer.validated_data.get(
-            "lunch_deduction_hours", 0
-        )
         other_deductions = serializer.validated_data.get("other_deductions", 0)
         other_deductions_description = serializer.validated_data.get(
             "other_deductions_description", ""
@@ -534,7 +527,6 @@ class CalculateAllSalaries(APIView):
                 employee,
                 apply_night_factor=apply_night_factor,
                 period_id=period_id,
-                lunch_deduction_hours=lunch_deduction_hours,
                 other_deductions=other_deductions,
                 other_deductions_description=other_deductions_description,
             )
