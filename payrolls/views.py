@@ -216,9 +216,9 @@ class ManagePayPeriodView(APIView):
         action = request.data.get("action", "")
 
         # Validar acción
-        if action not in ["close_current", "create_new"]:
+        if action not in ["close_current", "create_new", "close_and_create_new"]:
             return Response(
-                {"error": "Acción no válida. Use 'close_current' o 'create_new'"},
+                {"error": "Acción no válida. Use 'close_current', 'create_new' o 'close_and_create_new'"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -277,6 +277,84 @@ class ManagePayPeriodView(APIView):
             serializer = PayPeriodSerializer(new_period)
             return Response(
                 {"message": "Nuevo período creado", "period": serializer.data},
+                status=status.HTTP_201_CREATED,
+            )
+
+        # Cerrar período actual, crear uno nuevo Y migrar entradas actuales
+        elif action == "close_and_create_new":
+            from django.db import transaction
+            from payrolls.services.period_migration import migrate_current_shifts_to_new_period
+
+            # Verificar que haya un período abierto
+            current_period = PayPeriod.objects.filter(is_closed=False).first()
+            if not current_period:
+                return Response(
+                    {"error": "No hay un período de pago abierto para cerrar"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+            # Preparar fechas del nuevo período
+            today = date.today()
+            end_date = today + timedelta(days=15)  # Por defecto 15 días
+
+            # Personalizar fechas si se proporcionan
+            start_date = request.data.get("start_date", today)
+            if isinstance(start_date, str):
+                from datetime import datetime
+
+                try:
+                    start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+                except ValueError:
+                    start_date = datetime.strptime(start_date, "%d/%m/%Y").date()
+
+            if "end_date" in request.data:
+                end_date = request.data.get("end_date")
+                if isinstance(end_date, str):
+                    from datetime import datetime
+
+                    try:
+                        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+                    except ValueError:
+                        end_date = datetime.strptime(end_date, "%d/%m/%Y").date()
+
+            # Usar transacción para asegurar atomicidad
+            with transaction.atomic():
+                # 1. Crear el nuevo período primero
+                new_period = PayPeriod.objects.create(
+                    start_date=start_date, end_date=end_date, is_closed=False
+                )
+
+                # 2. Migrar las entradas actuales al nuevo período
+                migration_result = migrate_current_shifts_to_new_period(
+                    current_period, new_period
+                )
+
+                # 3. Cerrar el período actual
+                current_period.is_closed = True
+                current_period.save()
+
+            # Preparar respuesta
+            closed_period_serializer = PayPeriodSerializer(current_period)
+            new_period_serializer = PayPeriodSerializer(new_period)
+
+            return Response(
+                {
+                    "message": "Período cerrado, nuevo período creado y entradas actuales migradas exitosamente",
+                    "closed_period": closed_period_serializer.data,
+                    "new_period": new_period_serializer.data,
+                    "migration": {
+                        "migrated_count": migration_result["migrated_count"],
+                        "migrated_employees": [
+                            {
+                                "employee_id": record["employee_id"],
+                                "employee_username": record["employee_username"],
+                                "timestamp_in": record["timestamp_in"],
+                            }
+                            for record in migration_result["migrated_records"]
+                        ],
+                        "message": migration_result["message"],
+                    },
+                },
                 status=status.HTTP_201_CREATED,
             )
 
