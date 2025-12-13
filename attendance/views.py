@@ -1,15 +1,28 @@
+from django.utils.timezone import localtime
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from attendance.models import AttendanceRegister
 from attendance.serializers import (
     AttendanceRegisterSerializer,
     AttendanceStatsResponseSerializer,
 )
-from employee.models import Employee
-from attendance.models import AttendanceRegister
-from django.utils.timezone import localtime
-from timers.models import Timer
-from rest_framework.views import APIView
 from authentication.models import NFCToken
+from employee.models import Employee
+from timers.models import Timer
+
+
+def truncate_seconds(dt):
+    """Trunca segundos y microsegundos de un datetime."""
+    return dt.replace(second=0, microsecond=0)
+
+
+def round_early_entry(timestamp_in):
+    """Redondea entradas entre 7:00-7:59 AM a las 8:00 AM."""
+    if timestamp_in.hour == 7:
+        return timestamp_in.replace(hour=8, minute=0, second=0, microsecond=0)
+    return timestamp_in
 
 
 class AttendanceMarkView(generics.CreateAPIView):
@@ -98,10 +111,13 @@ class AttendanceMarkOutView(generics.UpdateAPIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Buscar registro de entrada pendiente (más reciente primero)
-        attendance = AttendanceRegister.objects.filter(
-            employee=employee, timestamp_out__isnull=True
-        ).order_by('-timestamp_in').first()
+        attendance = (
+            AttendanceRegister.objects.filter(
+                employee=employee, timestamp_out__isnull=True
+            )
+            .order_by("-timestamp_in")
+            .first()
+        )
 
         if not attendance:
             return Response(
@@ -185,15 +201,23 @@ class AttendanceStatsView(APIView):
                 timestamp_in_local = localtime(register.timestamp_in)
                 timestamp_out_local = localtime(register.timestamp_out)
 
+                # Truncar segundos (solo contar horas y minutos)
+                timestamp_in_local = truncate_seconds(timestamp_in_local)
+                timestamp_out_local = truncate_seconds(timestamp_out_local)
+
+                # Redondear entradas tempranas (7:XX AM -> 8:00 AM)
+                timestamp_in_local = round_early_entry(timestamp_in_local)
+
                 # Verificar si es un día nuevo
                 day_date = timestamp_in_local.date()
                 if day_date not in attendance_days:
                     attendance_days.add(day_date)
                     days_worked += 1
 
-                # Calcular tiempo trabajado en segundos
+                # Calcular tiempo trabajado en segundos (ya sin segundos/microsegundos)
                 worked_time = timestamp_out_local - timestamp_in_local
-                worked_seconds = worked_time.total_seconds()
+                # Truncar a minutos completos
+                worked_seconds = int(worked_time.total_seconds() // 60) * 60
                 total_worked_seconds += worked_seconds
 
                 # Verificar si es turno nocturno o diurno
@@ -225,7 +249,7 @@ class AttendanceStatsView(APIView):
 
             stats.append(
                 {
-                    "employee_id": employee.id, # type: ignore
+                    "employee_id": employee.id,  # type: ignore
                     "employee_name": employee.get_full_name(),
                     "username": employee.username,
                     "days_worked": days_worked,
@@ -243,7 +267,8 @@ class AttendanceStatsView(APIView):
         # Usar los serializers para validar y serializar los datos
         data = {
             "pay_period": {
-                "id": pay_period.id, # type: ignore
+                "id": pay_period.id,  # type: ignore
+                "id": pay_period.id,  # type: ignore
                 "description": pay_period.description,
                 "start_date": pay_period.start_date,
                 "end_date": pay_period.end_date,

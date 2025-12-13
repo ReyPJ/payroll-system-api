@@ -1,10 +1,62 @@
+from datetime import datetime, time, timedelta
+from decimal import ROUND_DOWN, Decimal
+
 from django.utils import timezone
 from django.utils.timezone import localtime
-from datetime import timedelta, time
+
 from attendance.models import AttendanceRegister
-from timers.models import Timer
-from decimal import Decimal
 from payrolls.models import PayPeriod
+from timers.models import Timer
+
+
+def truncate_seconds(dt):
+    """
+    Trunca los segundos y microsegundos de un datetime.
+    Solo mantiene horas y minutos para cálculos de nómina.
+
+    Args:
+        dt: datetime object
+
+    Returns:
+        datetime con segundos y microsegundos en 0
+    """
+    return dt.replace(second=0, microsecond=0)
+
+
+def truncate_timedelta_to_minutes(td):
+    """
+    Trunca un timedelta para que solo contenga horas y minutos completos.
+    Elimina segundos y microsegundos del cálculo.
+
+    Args:
+        td: timedelta object
+
+    Returns:
+        timedelta con solo horas y minutos (sin segundos)
+    """
+    total_minutes = int(td.total_seconds() // 60)
+    return timedelta(minutes=total_minutes)
+
+
+def round_early_entry(timestamp_in):
+    """
+    Redondea entradas tempranas (entre 7:00 AM y 7:59 AM) a las 8:00 AM.
+    Esto evita que empleados que marcan antes de su hora de entrada
+    acumulen tiempo extra no autorizado.
+
+    Args:
+        timestamp_in: datetime de la marca de entrada
+
+    Returns:
+        datetime ajustado (8:00 AM si entró entre 7:00-7:59 AM)
+    """
+    hour = timestamp_in.hour
+
+    # Si marcó entre 7:00 AM y 7:59 AM, redondear a 8:00 AM
+    if hour == 7:
+        return timestamp_in.replace(hour=8, minute=0, second=0, microsecond=0)
+
+    return timestamp_in
 
 
 def calculate_night_hours(timestamp_in, timestamp_out):
@@ -34,7 +86,7 @@ def calculate_night_hours(timestamp_in, timestamp_out):
         is_night_hour = current_time >= night_start or current_time < night_end
 
         if is_night_hour:
-            total_night += (next_hour - current)
+            total_night += next_hour - current
 
         current = next_hour
 
@@ -139,11 +191,20 @@ def calculate_pay_to_go(
         timestamp_in_local = localtime(record.timestamp_in)
         timestamp_out_local = localtime(record.timestamp_out)
 
+        # CAMBIO 1: Truncar segundos y microsegundos (solo contar horas y minutos)
+        timestamp_in_local = truncate_seconds(timestamp_in_local)
+        timestamp_out_local = truncate_seconds(timestamp_out_local)
+
+        # CAMBIO 2: Redondear entradas tempranas (7:XX AM -> 8:00 AM)
+        timestamp_in_local = round_early_entry(timestamp_in_local)
+
         # Validar orden correcto de tiempos
         if timestamp_out_local <= timestamp_in_local:
             continue
 
         worked_hours = timestamp_out_local - timestamp_in_local
+        # Truncar el timedelta resultante también (por seguridad)
+        worked_hours = truncate_timedelta_to_minutes(worked_hours)
         work_date = timestamp_in_local.date()
 
         # Verificar si el turno es nocturno según Timer
@@ -159,7 +220,9 @@ def calculate_pay_to_go(
             regular_hours_for_day = timedelta(0)
         else:
             # Calcular solo las horas que realmente cayeron en horario nocturno
-            night_hours_for_day = calculate_night_hours(timestamp_in_local, timestamp_out_local)
+            night_hours_for_day = calculate_night_hours(
+                timestamp_in_local, timestamp_out_local
+            )
             regular_hours_for_day = worked_hours - night_hours_for_day
 
         total_night_hours += night_hours_for_day
@@ -202,9 +265,26 @@ def calculate_pay_to_go(
     # Limitar horas nocturnas al máximo de horas regulares
     night_hours = min(night_hours, regular_hours)
 
-    # Calcular deducción de almuerzo automáticamente: 1 hora por cada día trabajado
-    days_worked = len(attendance_details)
-    lunch_deduction_hours = Decimal(days_worked)
+    # CAMBIO 3: Calcular deducción de almuerzo automáticamente:
+    # Solo 1 hora por cada día donde se trabajó >= 7 horas
+    # Si el turno es menor a 7 horas, NO se rebaja almuerzo ese día
+    MINIMUM_HOURS_FOR_LUNCH_DEDUCTION = 7
+    days_with_lunch_deduction = 0
+
+    for work_date, details in attendance_details.items():
+        # Calcular horas totales trabajadas ese día
+        daily_worked_hours = (
+            details["regular_hours"] + details["night_hours"]
+        ).total_seconds() / 3600
+
+        if daily_worked_hours >= MINIMUM_HOURS_FOR_LUNCH_DEDUCTION:
+            days_with_lunch_deduction += 1
+            # Marcar que este día tiene deducción de almuerzo
+            details["applies_lunch_deduction"] = True
+        else:
+            details["applies_lunch_deduction"] = False
+
+    lunch_deduction_hours = Decimal(days_with_lunch_deduction)
 
     # Distribuir las horas extra a los detalles diarios si hay horas extra
     if extra_hours > 0:
@@ -230,17 +310,14 @@ def calculate_pay_to_go(
                 seconds=int(extra_seconds_for_day)
             )
 
-    # Distribuir la deducción de almuerzo proporcionalmente a los días trabajados si hay deducción
+    # Aplicar deducción de almuerzo solo a los días que califican (>= 7 horas trabajadas)
     if lunch_deduction_hours > 0:
-        lunch_seconds = lunch_deduction_hours * 3600
-        days_count = len(attendance_details)
-
-        if days_count > 0:
-            lunch_seconds_per_day = lunch_seconds / days_count
-            for date in attendance_details:
-                attendance_details[date]["lunch_deduction"] = timedelta(
-                    seconds=int(lunch_seconds_per_day)
-                )
+        # 1 hora de deducción por día que califica
+        for date, details in attendance_details.items():
+            if details.get("applies_lunch_deduction", False):
+                attendance_details[date]["lunch_deduction"] = timedelta(hours=1)
+            else:
+                attendance_details[date]["lunch_deduction"] = timedelta(0)
 
     # Calcular salario
     regular_pay = regular_hours * employee.salary_hour
