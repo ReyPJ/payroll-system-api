@@ -57,9 +57,11 @@ class AttendanceStatsEmployeeSerializer(serializers.Serializer):
     employee_name = serializers.CharField()
     username = serializers.CharField()
     days_worked = serializers.IntegerField()
-    total_hours = serializers.FloatField()
+    total_hours = serializers.FloatField()  # Horas brutas trabajadas
     regular_hours = serializers.FloatField()
     night_hours = serializers.FloatField()
+    lunch_deduction_hours = serializers.FloatField()  # Horas deducidas por almuerzo
+    net_hours = serializers.FloatField()  # Horas netas (total - almuerzo)
     target_biweekly_hours = serializers.FloatField()
     hourly_rate = serializers.FloatField()
 

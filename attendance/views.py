@@ -182,6 +182,9 @@ class AttendanceStatsView(APIView):
 
         stats = []
 
+        # Constante para deducción de almuerzo (igual que en calculate_payroll)
+        MINIMUM_HOURS_FOR_LUNCH_DEDUCTION = 7
+
         for employee in employees:
             # Obtener registros completos (con entrada y salida)
             registers = AttendanceRegister.objects.filter(
@@ -194,8 +197,9 @@ class AttendanceStatsView(APIView):
             total_worked_seconds = 0
             regular_hours_seconds = 0
             night_hours_seconds = 0
-            attendance_days = set()
             days_worked = 0
+            # Diccionario para acumular horas por día (para calcular deducción de almuerzo)
+            daily_hours = {}
 
             for register in registers:
                 timestamp_in_local = localtime(register.timestamp_in)
@@ -210,8 +214,8 @@ class AttendanceStatsView(APIView):
 
                 # Verificar si es un día nuevo
                 day_date = timestamp_in_local.date()
-                if day_date not in attendance_days:
-                    attendance_days.add(day_date)
+                if day_date not in daily_hours:
+                    daily_hours[day_date] = 0
                     days_worked += 1
 
                 # Calcular tiempo trabajado en segundos (ya sin segundos/microsegundos)
@@ -219,6 +223,7 @@ class AttendanceStatsView(APIView):
                 # Truncar a minutos completos
                 worked_seconds = int(worked_time.total_seconds() // 60) * 60
                 total_worked_seconds += worked_seconds
+                daily_hours[day_date] += worked_seconds
 
                 # Verificar si es turno nocturno o diurno
                 is_night = False
@@ -241,11 +246,19 @@ class AttendanceStatsView(APIView):
                 else:
                     regular_hours_seconds += worked_seconds
 
+            # Calcular deducción de almuerzo: 1 hora por cada día con >= 7 horas trabajadas
+            lunch_deduction_hours = 0
+            for day_date, seconds in daily_hours.items():
+                hours_worked_that_day = seconds / 3600
+                if hours_worked_that_day >= MINIMUM_HOURS_FOR_LUNCH_DEDUCTION:
+                    lunch_deduction_hours += 1
+
             # Convertir segundos a horas
             total_hours = round(total_worked_seconds / 3600, 2)
             regular_hours = round(regular_hours_seconds / 3600, 2)
             night_hours = round(night_hours_seconds / 3600, 2)
-            # No calculamos horas extras, ya que se calculan a nivel de planilla después de 96 horas quincenales
+            # Horas netas = total - deducción de almuerzo
+            net_hours = round(total_hours - lunch_deduction_hours, 2)
 
             stats.append(
                 {
@@ -256,6 +269,8 @@ class AttendanceStatsView(APIView):
                     "total_hours": total_hours,
                     "regular_hours": regular_hours,
                     "night_hours": night_hours,
+                    "lunch_deduction_hours": float(lunch_deduction_hours),
+                    "net_hours": net_hours,
                     "target_biweekly_hours": float(employee.biweekly_hours),
                     "hourly_rate": float(employee.salary_hour),
                 }
@@ -267,7 +282,6 @@ class AttendanceStatsView(APIView):
         # Usar los serializers para validar y serializar los datos
         data = {
             "pay_period": {
-                "id": pay_period.id,  # type: ignore
                 "id": pay_period.id,  # type: ignore
                 "description": pay_period.description,
                 "start_date": pay_period.start_date,
