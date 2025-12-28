@@ -6,6 +6,7 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
     employee_name = serializers.SerializerMethodField()
     has_night_hours = serializers.SerializerMethodField()
     period_name = serializers.SerializerMethodField()
+    net_hours = serializers.SerializerMethodField()
 
     class Meta: #type: ignore
         model = SalaryRecord
@@ -17,6 +18,7 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
             "regular_hours",
             "night_hours",
             "extra_hours",
+            "net_hours",
             "night_shift_factor_applied",
             "gross_salary",
             "lunch_deduction_hours",
@@ -40,6 +42,10 @@ class SalaryRecordSerializer(serializers.ModelSerializer):
         if obj.pay_period:
             return obj.pay_period.description
         return ""
+
+    def get_net_hours(self, obj) -> float:
+        """Horas netas = total_hours - lunch_deduction_hours"""
+        return float(obj.total_hours - obj.lunch_deduction_hours)
 
 
 class PayPeriodSerializer(serializers.ModelSerializer):
